@@ -4,14 +4,17 @@
   "engines": {
     "node": "^22.13.0 || ^24.3.0 || >=26.0.0"
   },
+  "installConfig": {
+    "hoistingLimits": "workspaces"
+  },
   "workspaces": [
     "apps/*",
     "packages/*",
     "server"
   ],
   "scripts": {
-    "mobile": "npm run start --workspace=@personal-ai/mobile",
-    "mobile:web": "npm run web --workspace=@personal-ai/mobile",
+    "mobile": "npm --prefix apps/mobile run start",
+    "mobile:web": "npm --prefix apps/mobile run web",
     "server": "npm run dev --workspace=@personal-ai/server",
     "typecheck": "npm run typecheck --workspaces --if-present"
   }
