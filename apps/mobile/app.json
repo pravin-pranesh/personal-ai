@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "Personal AI Task Store",
+    "slug": "personal-ai-task-store",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "personal-ai",
+    "userInterfaceStyle": "light",
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": ["expo-router"]
+  }
+}

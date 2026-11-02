@@ -1,0 +1,15 @@
+{
+  "name": "personal-ai-task-store",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "server"
+  ],
+  "scripts": {
+    "mobile": "npm run start --workspace=@personal-ai/mobile",
+    "mobile:web": "npm run web --workspace=@personal-ai/mobile",
+    "server": "npm run dev --workspace=@personal-ai/server",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  }
+}
