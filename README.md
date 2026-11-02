@@ -33,3 +33,15 @@ For phone testing on LAN, use `LOCAL-RUN.ps1`.
 - `npm run mobile:web` — Expo web
 - `npm run server` — REST API (migrates + seeds catalog on first boot)
 - `npm run typecheck` — TypeScript for all workspaces
+
+## Troubleshooting (Expo)
+
+Do **not** run bare `npx expo start` from the monorepo root. That starts Expo against the root package (`personal-ai-task-store`) and shows a white screen with only the slug.
+
+Always start mobile from the repo root with:
+
+```powershell
+npm run mobile
+```
+
+That runs Expo in `apps/mobile` (via `npm --prefix apps/mobile`).
