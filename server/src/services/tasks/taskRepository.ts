@@ -10,7 +10,7 @@ import type {
   TaskInputField,
 } from "@personal-ai/shared";
 import { STORE_CATEGORIES } from "@personal-ai/shared";
-import type Database from "better-sqlite3";
+import type { DatabaseSync } from "node:sqlite";
 import { getDb } from "../../db/database.js";
 
 type TaskRow = {
@@ -56,14 +56,14 @@ function rowToSummary(row: TaskRow): TaskDefinitionSummary {
   };
 }
 
-function isInstalled(database: Database.Database, taskId: string): boolean {
+function isInstalled(database: DatabaseSync, taskId: string): boolean {
   const row = database
     .prepare("SELECT 1 FROM installed_tasks WHERE task_id = ?")
     .get(taskId);
   return !!row;
 }
 
-function isFavorite(database: Database.Database, taskId: string): boolean {
+function isFavorite(database: DatabaseSync, taskId: string): boolean {
   const row = database
     .prepare("SELECT 1 FROM favorites WHERE task_id = ?")
     .get(taskId);

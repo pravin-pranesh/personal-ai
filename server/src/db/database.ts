@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import Database from "better-sqlite3";
+import { DatabaseSync } from "node:sqlite";
 import { CATALOG_SEED } from "./seedTasks.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -9,9 +9,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, "..", "..", "data");
 const DB_PATH = path.join(DATA_DIR, "app.db");
 
-let db: Database.Database | null = null;
+let db: DatabaseSync | null = null;
 
-function runMigrations(database: Database.Database): void {
+function runMigrations(database: DatabaseSync): void {
   const migrationsDir = path.join(__dirname, "migrations");
   const files = fs
     .readdirSync(migrationsDir)
@@ -40,7 +40,7 @@ function runMigrations(database: Database.Database): void {
   }
 }
 
-function seedCatalog(database: Database.Database): void {
+function seedCatalog(database: DatabaseSync): void {
   const count = database
     .prepare("SELECT COUNT(*) AS c FROM task_definitions")
     .get() as { c: number };
@@ -58,7 +58,8 @@ function seedCatalog(database: Database.Database): void {
     )
   `);
 
-  const tx = database.transaction(() => {
+  database.exec("BEGIN");
+  try {
     for (const task of CATALOG_SEED) {
       insert.run({
         id: task.id,
@@ -76,16 +77,19 @@ function seedCatalog(database: Database.Database): void {
         featured: task.featured ? 1 : 0,
       });
     }
-  });
-  tx();
+    database.exec("COMMIT");
+  } catch (e) {
+    database.exec("ROLLBACK");
+    throw e;
+  }
 }
 
-export function getDb(): Database.Database {
+export function getDb(): DatabaseSync {
   if (db) return db;
   fs.mkdirSync(DATA_DIR, { recursive: true });
-  db = new Database(DB_PATH);
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
+  db = new DatabaseSync(DB_PATH);
+  db.exec("PRAGMA journal_mode = WAL;");
+  db.exec("PRAGMA foreign_keys = ON;");
   runMigrations(db);
   seedCatalog(db);
   return db;
