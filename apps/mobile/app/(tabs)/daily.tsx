@@ -15,8 +15,10 @@ import {
   createDailyTaskTopic,
   deleteDailyTaskTopic,
   fetchDailyTasks,
+  runEngineNow,
   updateDailyTaskSchedule,
 } from "../../src/api/client";
+import { isPhoneLocalMode } from "../../src/config/api";
 import { NewsCard } from "../../src/components/research/NewsCard";
 import { ResearchBriefing } from "../../src/components/research/ResearchBriefing";
 import { useMascotOverlay } from "../../src/mascot/MascotOverlayContext";
@@ -115,6 +117,7 @@ export default function DailyTasksScreen() {
   const [timezone, setTimezone] = useState(deviceTimezone);
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [expandedRunId, setExpandedRunId] = useState<string | null>(null);
+  const [runningEngine, setRunningEngine] = useState(false);
 
   const applyPayload = useCallback(
     (data: DailyTasksPayload) => {
@@ -231,9 +234,23 @@ export default function DailyTasksScreen() {
 
       <Text style={typography.subtitle}>Daily schedule</Text>
       <Text style={styles.hint}>
-        Set daily topics and time here. When the time passes, the server runs the same research
-        pipeline as the Research tab (Gemini when configured, otherwise sample cards).
+        Set daily topics and time here. When the time passes, the task engine runs the same research
+        pipeline as the Research tab (on-device when phone-local).
       </Text>
+      {isPhoneLocalMode() ? (
+        <PrimaryButton
+          label={runningEngine ? "…" : "Run engine now"}
+          variant="secondary"
+          onPress={() => {
+            setRunningEngine(true);
+            void runEngineNow()
+              .then(() => load())
+              .catch(() => Alert.alert("Engine", "Could not process queue."))
+              .finally(() => setRunningEngine(false));
+          }}
+          disabled={runningEngine}
+        />
+      ) : null}
 
       <Card style={styles.scheduleCard}>
         <Text style={styles.sectionTitle}>Run time (local)</Text>

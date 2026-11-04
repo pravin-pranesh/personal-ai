@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { parseCommand } from "./commandRouter";
+import { parseCommandWithLlm } from "./geminiIntent";
 import { startSpeechToText } from "./stt";
 import { executeVoiceIntent } from "../phone/phoneActions";
 import { useMascotOverlay } from "../mascot/MascotOverlayContext";
@@ -24,7 +24,7 @@ export function FloatingVoiceButton() {
 
   const runText = useCallback(
     async (text: string) => {
-      const intent = parseCommand(text);
+      const intent = await parseCommandWithLlm(text);
       try {
         const reply = await executeVoiceIntent(intent);
         speakCue({ message: reply, reason: "Voice command" });

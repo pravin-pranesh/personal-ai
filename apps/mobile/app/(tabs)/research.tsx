@@ -15,8 +15,10 @@ import type { ResearchSession } from "@personal-ai/shared";
 import {
   createResearchSession,
   deleteResearchSession,
+  exportResearchSessionLocal,
   fetchResearchSessions,
 } from "../../src/api/client";
+import { isPhoneLocalMode } from "../../src/config/api";
 import { AssistantOrbAvatar } from "../../src/components/research/AssistantOrbAvatar";
 import { NewsCard } from "../../src/components/research/NewsCard";
 import { ResearchBriefing } from "../../src/components/research/ResearchBriefing";
@@ -100,6 +102,14 @@ export default function ResearchScreen() {
   const openSession = (session: ResearchSession) => {
     setView("chat");
     setMessages(sessionToMessages(session));
+  };
+
+  const onExportSession = async (session: ResearchSession) => {
+    try {
+      await exportResearchSessionLocal(session);
+    } catch (err) {
+      Alert.alert("Export failed", err instanceof Error ? err.message : "Try again.");
+    }
   };
 
   const onDeleteSession = (session: ResearchSession) => {
@@ -193,7 +203,8 @@ export default function ResearchScreen() {
               <View style={styles.emptyState}>
                 <Text style={styles.emptyTitle}>No history yet</Text>
                 <Text style={styles.emptyHint}>
-                  Start a new chat — sessions stay here for 7 days.
+                  Start a new chat — history is kept per Settings retention (default 30 days or
+                  forever).
                 </Text>
               </View>
             ) : (
@@ -207,12 +218,22 @@ export default function ResearchScreen() {
                       {new Date(s.createdAt).toLocaleString()}
                     </Text>
                   </Pressable>
-                  <Pressable
-                    onPress={() => onDeleteSession(s)}
-                    accessibilityLabel="Delete session"
-                  >
-                    <Text style={styles.historyDelete}>Delete</Text>
-                  </Pressable>
+                  <View style={styles.historyActions}>
+                    {isPhoneLocalMode() ? (
+                      <Pressable
+                        onPress={() => void onExportSession(s)}
+                        accessibilityLabel="Export session"
+                      >
+                        <Text style={styles.historyExport}>Export</Text>
+                      </Pressable>
+                    ) : null}
+                    <Pressable
+                      onPress={() => onDeleteSession(s)}
+                      accessibilityLabel="Delete session"
+                    >
+                      <Text style={styles.historyDelete}>Delete</Text>
+                    </Pressable>
+                  </View>
                 </View>
               ))
             )}
@@ -351,6 +372,8 @@ const styles = StyleSheet.create({
   },
   historyMain: { flex: 1, gap: 4 },
   historyPrompt: { ...typography.body, fontWeight: "600" },
+  historyActions: { alignItems: "flex-end", gap: 8 },
+  historyExport: { color: colors.primary, fontWeight: "700", fontSize: 14 },
   historyDelete: { color: colors.danger, fontWeight: "700", fontSize: 14 },
   userRow: { flexDirection: "row", justifyContent: "flex-end" },
   userBubble: {

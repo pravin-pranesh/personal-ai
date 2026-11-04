@@ -17,7 +17,7 @@ dailyResearchRouter.get("/api/daily/research", (_req, res) => {
 dailyResearchRouter.get("/api/daily/research/rag", async (req, res) => {
   const q = typeof req.query.q === "string" ? req.query.q : "";
   const hits = await searchSavedResearch(q);
-  res.json({ query: q, hits });
+  res.json({ query: q, hits, mode: "keyword" as const });
 });
 
 dailyResearchRouter.get("/api/daily/research/:id", (req, res) => {

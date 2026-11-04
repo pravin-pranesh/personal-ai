@@ -2,10 +2,11 @@ import type { ResearchNewsCard, ResearchSession } from "@personal-ai/shared";
 import * as FileSystem from "expo-file-system/legacy";
 import { LOCAL_ROOT, ensureDir, newId, readJsonFile, writeJsonFile } from "./fsJson";
 import { collectResearchOnDevice } from "./researchCollect";
+import { indexSessionEmbedding } from "./rag/embeddings";
+import { getResearchRetentionDays } from "./settingsSecure";
 
 const RESEARCH_DIR = `${LOCAL_ROOT}/daily/research`;
 const INDEX_PATH = `${RESEARCH_DIR}/index.json`;
-const RETENTION_DAYS = 7;
 
 type Index = { sessions: ResearchSession[] };
 
@@ -50,7 +51,9 @@ async function saveIndex(index: Index): Promise<void> {
 }
 
 export async function pruneResearchSessions(): Promise<void> {
-  const cutoff = Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000;
+  const retentionDays = await getResearchRetentionDays();
+  if (retentionDays === 0) return;
+  const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
   const index = await readIndex();
   const keep: ResearchSession[] = [];
   for (const s of index.sessions) {
@@ -102,6 +105,7 @@ export async function createResearchSessionLocal(prompt: string): Promise<Resear
   const index = await readIndex();
   index.sessions.unshift(session);
   await saveIndex(index);
+  void indexSessionEmbedding(session);
   return session;
 }
 
@@ -126,14 +130,10 @@ export async function clearResearchLocal(): Promise<void> {
   await saveIndex({ sessions: [] });
 }
 
-export async function searchResearchRagLocal(query: string): Promise<{
-  query: string;
-  hits: { sessionId: string; prompt: string; fileName: string; snippet: string; score: number }[];
-}> {
+function keywordHits(query: string, sessions: ResearchSession[]) {
   const q = query.trim().toLowerCase();
   const terms = q.split(/\W+/).filter((t) => t.length > 2);
-  const sessions = await listResearchSessionsLocal();
-  const hits = sessions
+  return sessions
     .map((s) => {
       const body = `${s.summary}\n${s.briefingMarkdown ?? ""}\n${s.cards.map((c) => c.title).join(" ")}`;
       let score = 0;
@@ -151,7 +151,36 @@ export async function searchResearchRagLocal(query: string): Promise<{
     .filter((h) => h.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 8);
-  return { query, hits };
+}
+
+export async function searchResearchRagLocal(query: string): Promise<{
+  query: string;
+  hits: { sessionId: string; prompt: string; fileName: string; snippet: string; score: number }[];
+  mode: "semantic" | "keyword";
+}> {
+  const { getLocalSettingsPublic } = await import("./settingsSecure");
+  const { semanticSearch } = await import("./rag/embeddings");
+  const settings = await getLocalSettingsPublic();
+  const sessions = await listResearchSessionsLocal();
+
+  if (settings.ragActiveMode === "semantic") {
+    const sem = await semanticSearch(query);
+    if (sem.length) {
+      const hits = sem.map((h) => {
+        const s = sessions.find((x) => x.id === h.sessionId);
+        return {
+          sessionId: h.sessionId,
+          prompt: h.prompt,
+          fileName: s?.fileName ?? "",
+          snippet: s?.summary.slice(0, 180) ?? h.prompt,
+          score: h.score,
+        };
+      });
+      return { query, hits, mode: "semantic" };
+    }
+  }
+
+  return { query, hits: keywordHits(query, sessions), mode: "keyword" };
 }
 
 export type { ResearchNewsCard };

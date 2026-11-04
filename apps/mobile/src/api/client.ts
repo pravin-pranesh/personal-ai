@@ -2,6 +2,7 @@ import type {
   DailyTaskSchedule,
   DailyTaskTopic,
   DailyTasksPayload,
+  EngineStatusPayload,
   DailyTodo,
   DailyTodosPayload,
   DashboardPayload,
@@ -307,4 +308,70 @@ export function clearAllResearchHistory(): Promise<{ ok: boolean }> {
     return researchLocal.clearResearchLocal().then(() => ({ ok: true }));
   }
   return request("/api/daily/research", { method: "DELETE" });
+}
+
+export async function fetchEngineStatus(): Promise<EngineStatusPayload> {
+  if (isPhoneLocalMode()) {
+    const { getEngineStatus } = await import("../local/engine/queue");
+    return getEngineStatus();
+  }
+  return request<EngineStatusPayload>("/api/tasks/engine/status");
+}
+
+export async function enqueueEngineTask(
+  type: import("@personal-ai/shared").EngineTaskType,
+  payload: Record<string, unknown>,
+) {
+  if (isPhoneLocalMode()) {
+    const { enqueueEngineTask: enqueue } = await import("../local/engine/queue");
+    return enqueue(type, payload);
+  }
+  return request("/api/tasks/engine", {
+    method: "POST",
+    body: JSON.stringify({ type, payload }),
+  });
+}
+
+export async function runEngineNow() {
+  if (isPhoneLocalMode()) {
+    const { processEngineQueue } = await import("../local/engine/processor");
+    await processEngineQueue(3);
+    return { ok: true };
+  }
+  return request("/api/tasks/engine/run", { method: "POST" });
+}
+
+export function processEngineQueueLocal(): Promise<void> {
+  if (!isPhoneLocalMode()) return Promise.resolve();
+  return import("../local/engine/processor").then((m) => m.processEngineQueue(2));
+}
+
+export function tickDailyTasksLocalOps(): Promise<unknown> {
+  if (isPhoneLocalMode()) return dailyLocal.tickDailyTasksLocal();
+  return tickDailyTasks();
+}
+
+export function tickMcpScheduleLocal(): Promise<void> {
+  if (!isPhoneLocalMode()) return Promise.resolve();
+  return import("../local/mcp/scheduler").then((m) => m.tickMcpSchedule());
+}
+
+export async function listMcpRunsLocal() {
+  if (isPhoneLocalMode()) {
+    const { listMcpRuns } = await import("../local/mcp/client");
+    return listMcpRuns();
+  }
+  return [];
+}
+
+export async function exportAllResearchLocal() {
+  if (!isPhoneLocalMode()) throw new Error("Export requires phone-local mode");
+  const { exportAllResearch } = await import("../local/researchExport");
+  return exportAllResearch();
+}
+
+export async function exportResearchSessionLocal(session: ResearchSession) {
+  if (!isPhoneLocalMode()) throw new Error("Export requires phone-local mode");
+  const { exportSessionMarkdown } = await import("../local/researchExport");
+  return exportSessionMarkdown(session);
 }

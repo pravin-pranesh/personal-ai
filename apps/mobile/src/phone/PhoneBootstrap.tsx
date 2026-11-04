@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { AppState, Platform } from "react-native";
 import { isPhoneLocalMode } from "../config/api";
-import { tickDailyTasks } from "../api/client";
+import { processEngineQueueLocal, tickDailyTasksLocalOps, tickMcpScheduleLocal } from "../api/client";
 import { registerBackgroundReschedule } from "../notifications/backgroundReschedule";
 import {
   listenForNotificationDelivery,
@@ -25,7 +25,9 @@ export function PhoneBootstrap() {
     void registerBackgroundReschedule();
     const syncAll = () => {
       void syncAllScheduledNotifications(onFire);
-      if (isPhoneLocalMode()) void tickDailyTasks();
+      if (isPhoneLocalMode()) void tickDailyTasksLocalOps();
+      if (isPhoneLocalMode()) void tickMcpScheduleLocal();
+      if (isPhoneLocalMode()) void processEngineQueueLocal();
     };
     syncAll();
     const unsub = listenForNotificationDelivery(onFire);

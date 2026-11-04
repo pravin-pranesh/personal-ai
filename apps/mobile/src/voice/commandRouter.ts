@@ -1,12 +1,13 @@
 export type VoiceIntent =
-  | { type: "search"; query: string }
-  | { type: "maps"; query: string }
+  | { type: "search"; query: string; inApp?: boolean }
+  | { type: "maps"; query: string; inApp?: boolean }
   | { type: "research"; prompt: string }
   | { type: "todo"; title: string; fireAt: Date }
   | { type: "reminder"; title: string; fireAt: Date }
   | { type: "alarm"; title: string; fireAt: Date }
   | { type: "open_files" }
   | { type: "rag"; query: string }
+  | { type: "daily" }
   | { type: "unknown"; raw: string };
 
 function parseTimePhrase(text: string, base = new Date()): Date | null {
@@ -64,6 +65,10 @@ export function parseCommand(raw: string): VoiceIntent {
     const fireAt = parseTimePhrase(text) ?? new Date(Date.now() + 60_000);
     const title = text.replace(/set alarm/i, "").trim() || "Alarm";
     return { type: "alarm", title, fireAt };
+  }
+
+  if (lower.includes("daily schedule") || lower.includes("run daily")) {
+    return { type: "daily" };
   }
 
   if (lower.includes("remember to")) {

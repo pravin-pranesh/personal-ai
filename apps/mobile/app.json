@@ -18,7 +18,8 @@
           "color": "#2563EB"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-sharing"
     ],
     "android": {
       "permissions": [

@@ -1,6 +1,15 @@
 import * as SecureStore from "expo-secure-store";
-import type { ResearchProvider, SettingsPublic, SettingsUpdateBody } from "@personal-ai/shared";
+import type {
+  McpScheduleConfig,
+  McpServerConfig,
+  RagMode,
+  ResearchProvider,
+  ResearchRetentionDays,
+  SettingsPublic,
+  SettingsUpdateBody,
+} from "@personal-ai/shared";
 import { LOCAL_ROOT, readJsonFile, writeJsonFile } from "./fsJson";
+import { hasEmbeddings } from "./rag/embeddings";
 
 const PREFS_PATH = `${LOCAL_ROOT}/settings-prefs.json`;
 const KEY_GEMINI = "personal-ai-gemini-key";
@@ -12,6 +21,19 @@ type PrefsFile = {
   demoMode?: boolean;
   researchProvider?: ResearchProvider;
   ollamaUrl?: string;
+  mcpEnabled?: boolean;
+  mcpServers?: McpServerConfig[];
+  mcpSchedule?: McpScheduleConfig;
+  researchRetentionDays?: ResearchRetentionDays;
+  ragMode?: RagMode;
+};
+
+const DEFAULT_MCP_SCHEDULE: McpScheduleConfig = {
+  enabled: false,
+  mode: "daily",
+  runTimeLocal: "09:00",
+  toolName: "default",
+  arguments: {},
 };
 
 async function readPrefs(): Promise<PrefsFile> {
@@ -37,11 +59,25 @@ async function checkOllama(url: string): Promise<boolean> {
   }
 }
 
+async function resolveRagActiveMode(
+  ragMode: RagMode,
+  ollamaReachable: boolean,
+): Promise<"semantic" | "keyword"> {
+  if (ragMode === "keyword") return "keyword";
+  if (ragMode === "semantic") {
+    return ollamaReachable && (await hasEmbeddings()) ? "semantic" : "keyword";
+  }
+  if (ollamaReachable && (await hasEmbeddings())) return "semantic";
+  return "keyword";
+}
+
 export async function getLocalSettingsPublic(): Promise<SettingsPublic> {
   const prefs = await readPrefs();
   const geminiKey = (await SecureStore.getItemAsync(KEY_GEMINI)) ?? "";
   const kimiKey = (await SecureStore.getItemAsync(KEY_KIMI)) ?? "";
   const ollamaUrl = prefs.ollamaUrl?.trim() || "http://127.0.0.1:11434";
+  const ollamaReachable = await checkOllama(ollamaUrl);
+  const ragMode = prefs.ragMode ?? "auto";
   return {
     geminiConfigured: Boolean(geminiKey.trim()),
     geminiModel: prefs.geminiModel?.trim() || "gemini-2.0-flash",
@@ -50,11 +86,21 @@ export async function getLocalSettingsPublic(): Promise<SettingsPublic> {
     kimiKeyPreview: kimiKey.trim() ? keyPreview(kimiKey.trim()) : undefined,
     kimiModel: prefs.kimiModel?.trim() || "moonshot-v1-8k",
     ollamaUrl,
-    ollamaReachable: await checkOllama(ollamaUrl),
+    ollamaReachable,
     demoMode: prefs.demoMode === true,
     researchProvider: prefs.researchProvider ?? "auto",
-    mcpEnabled: false,
+    mcpEnabled: prefs.mcpEnabled === true,
+    mcpServers: prefs.mcpServers ?? [],
+    mcpSchedule: { ...DEFAULT_MCP_SCHEDULE, ...(prefs.mcpSchedule ?? {}) },
+    researchRetentionDays: prefs.researchRetentionDays ?? 30,
+    ragMode,
+    ragActiveMode: await resolveRagActiveMode(ragMode, ollamaReachable),
   };
+}
+
+export async function getResearchRetentionDays(): Promise<ResearchRetentionDays> {
+  const prefs = await readPrefs();
+  return prefs.researchRetentionDays ?? 30;
 }
 
 export async function updateLocalSettings(patch: SettingsUpdateBody): Promise<SettingsPublic> {
@@ -81,6 +127,15 @@ export async function updateLocalSettings(patch: SettingsUpdateBody): Promise<Se
   if (patch.ollamaUrl !== undefined) {
     prefs.ollamaUrl = patch.ollamaUrl.trim() || undefined;
   }
+  if (patch.mcpEnabled !== undefined) prefs.mcpEnabled = patch.mcpEnabled;
+  if (patch.mcpServers !== undefined) prefs.mcpServers = patch.mcpServers;
+  if (patch.mcpSchedule !== undefined) {
+    prefs.mcpSchedule = { ...DEFAULT_MCP_SCHEDULE, ...(prefs.mcpSchedule ?? {}), ...patch.mcpSchedule };
+  }
+  if (patch.researchRetentionDays !== undefined) {
+    prefs.researchRetentionDays = patch.researchRetentionDays;
+  }
+  if (patch.ragMode !== undefined) prefs.ragMode = patch.ragMode;
 
   await writePrefs(prefs);
   return getLocalSettingsPublic();

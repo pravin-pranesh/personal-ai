@@ -176,6 +176,70 @@ export type ResearchRagHit = {
 export type ResearchRagPayload = {
   query: string;
   hits: ResearchRagHit[];
+  mode: "semantic" | "keyword";
+};
+
+export type ResearchRetentionDays = 0 | 1 | 7 | 30;
+
+export type RagMode = "auto" | "semantic" | "keyword";
+
+export type EngineTaskType =
+  | "research"
+  | "reminder"
+  | "todo"
+  | "open_url"
+  | "scheduled_daily"
+  | "mcp_call";
+
+export type EngineTaskStatus = "pending" | "running" | "done" | "error";
+
+export type EngineTask = {
+  id: string;
+  type: EngineTaskType;
+  status: EngineTaskStatus;
+  payload: Record<string, unknown>;
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  error?: string;
+  result?: Record<string, unknown>;
+};
+
+export type EngineStatusPayload = {
+  pending: number;
+  running: number;
+  done: number;
+  error: number;
+  tasks: EngineTask[];
+};
+
+export type McpServerConfig = {
+  id: string;
+  name: string;
+  url: string;
+  /** Optional path appended for tool calls, e.g. /mcp or /tools/run */
+  toolPath?: string;
+};
+
+export type McpScheduleConfig = {
+  enabled: boolean;
+  mode: "interval" | "daily";
+  intervalMinutes?: number;
+  runTimeLocal?: string;
+  serverId?: string;
+  toolName?: string;
+  arguments?: Record<string, unknown>;
+};
+
+export type McpRunRecord = {
+  id: string;
+  serverId: string;
+  toolName: string;
+  startedAt: string;
+  completedAt?: string;
+  ok: boolean;
+  responsePreview?: string;
+  error?: string;
 };
 
 export type DailyTaskTopic = {
@@ -228,8 +292,12 @@ export type SettingsPublic = {
   ollamaReachable: boolean;
   demoMode: boolean;
   researchProvider: ResearchProvider;
-  /** MA-8 placeholder — MCP scheduler not wired in v1 */
   mcpEnabled: boolean;
+  mcpServers: McpServerConfig[];
+  mcpSchedule: McpScheduleConfig;
+  researchRetentionDays: ResearchRetentionDays;
+  ragMode: RagMode;
+  ragActiveMode: "semantic" | "keyword";
 };
 
 export type SettingsUpdateBody = {
@@ -240,4 +308,9 @@ export type SettingsUpdateBody = {
   ollamaUrl?: string;
   demoMode?: boolean;
   researchProvider?: ResearchProvider;
+  mcpEnabled?: boolean;
+  mcpServers?: McpServerConfig[];
+  mcpSchedule?: Partial<McpScheduleConfig>;
+  researchRetentionDays?: ResearchRetentionDays;
+  ragMode?: RagMode;
 };

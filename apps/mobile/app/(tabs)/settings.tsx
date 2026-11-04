@@ -10,12 +10,20 @@ import {
   TextInput,
   View,
 } from "react-native";
-import type { ResearchProvider } from "@personal-ai/shared";
+import type {
+  EngineStatusPayload,
+  RagMode,
+  ResearchProvider,
+  ResearchRetentionDays,
+} from "@personal-ai/shared";
 import {
   ApiRequestError,
   clearAllResearchHistory,
   clearLocalDailyData,
+  exportAllResearchLocal,
+  fetchEngineStatus,
   fetchSettings,
+  runEngineNow,
   testGeminiSettings,
   testOllamaSettings,
   updateSettings,
@@ -61,6 +69,20 @@ export default function SettingsScreen() {
   const [researchProvider, setResearchProvider] = useState<ResearchProvider>("auto");
   const [testingOllama, setTestingOllama] = useState(false);
   const [clearingHistory, setClearingHistory] = useState(false);
+  const [engineStatus, setEngineStatus] = useState<EngineStatusPayload | null>(null);
+  const [engineRunning, setEngineRunning] = useState(false);
+  const [mcpEnabled, setMcpEnabled] = useState(false);
+  const [mcpServerName, setMcpServerName] = useState("My MCP");
+  const [mcpServerUrl, setMcpServerUrl] = useState("");
+  const [mcpToolName, setMcpToolName] = useState("default");
+  const [mcpScheduleEnabled, setMcpScheduleEnabled] = useState(false);
+  const [mcpScheduleMode, setMcpScheduleMode] = useState<"interval" | "daily">("daily");
+  const [mcpIntervalMinutes, setMcpIntervalMinutes] = useState("60");
+  const [mcpRunTimeLocal, setMcpRunTimeLocal] = useState("09:00");
+  const [researchRetentionDays, setResearchRetentionDays] = useState<ResearchRetentionDays>(30);
+  const [ragMode, setRagMode] = useState<RagMode>("auto");
+  const [ragActiveMode, setRagActiveMode] = useState<"semantic" | "keyword">("keyword");
+  const [exportingResearch, setExportingResearch] = useState(false);
 
   const applySettings = useCallback((data: Awaited<ReturnType<typeof fetchSettings>>) => {
     setGeminiConfigured(data.geminiConfigured);
@@ -73,6 +95,27 @@ export default function SettingsScreen() {
     setOllamaReachable(data.ollamaReachable);
     setDemoMode(data.demoMode);
     setResearchProvider(data.researchProvider);
+    setMcpEnabled(data.mcpEnabled);
+    const primary = data.mcpServers[0];
+    setMcpServerName(primary?.name ?? "My MCP");
+    setMcpServerUrl(primary?.url ?? "");
+    setMcpToolName(data.mcpSchedule.toolName ?? "default");
+    setMcpScheduleEnabled(data.mcpSchedule.enabled);
+    setMcpScheduleMode(data.mcpSchedule.mode);
+    setMcpIntervalMinutes(String(data.mcpSchedule.intervalMinutes ?? 60));
+    setMcpRunTimeLocal(data.mcpSchedule.runTimeLocal ?? "09:00");
+    setResearchRetentionDays(data.researchRetentionDays);
+    setRagMode(data.ragMode);
+    setRagActiveMode(data.ragActiveMode);
+  }, []);
+
+  const refreshEngineStatus = useCallback(async () => {
+    try {
+      const status = await fetchEngineStatus();
+      setEngineStatus(status);
+    } catch {
+      setEngineStatus(null);
+    }
   }, []);
 
   const loadSettings = useCallback(async () => {
@@ -81,6 +124,7 @@ export default function SettingsScreen() {
     try {
       const data = await fetchSettings();
       applySettings(data);
+      await refreshEngineStatus();
     } catch (err) {
       setGeminiConfigured(false);
       setKeyPreview(undefined);
@@ -88,7 +132,7 @@ export default function SettingsScreen() {
     } finally {
       setSettingsLoading(false);
     }
-  }, [applySettings]);
+  }, [applySettings, refreshEngineStatus]);
 
   useEffect(() => {
     void loadSettings();
@@ -147,6 +191,8 @@ export default function SettingsScreen() {
         ollamaUrl: ollamaUrl.trim(),
         kimiApiKey: kimiKeyDraft.trim() || undefined,
         kimiModel: kimiModel.trim(),
+        researchRetentionDays,
+        ragMode,
       });
       setKimiKeyDraft("");
       const data = await fetchSettings();
@@ -233,6 +279,69 @@ export default function SettingsScreen() {
         },
       ],
     );
+  };
+
+  const onSaveMcp = async () => {
+    const url = mcpServerUrl.trim();
+    if (mcpEnabled && !url) {
+      Alert.alert("MCP URL required", "Add a server URL or turn MCP off.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const interval = Math.max(5, parseInt(mcpIntervalMinutes, 10) || 60);
+      await updateSettings({
+        mcpEnabled,
+        mcpServers: url
+          ? [{ id: "primary", name: mcpServerName.trim() || "MCP", url }]
+          : [],
+        mcpSchedule: {
+          enabled: mcpScheduleEnabled && mcpEnabled,
+          mode: mcpScheduleMode,
+          intervalMinutes: interval,
+          runTimeLocal: mcpRunTimeLocal.trim() || "09:00",
+          serverId: url ? "primary" : undefined,
+          toolName: mcpToolName.trim() || "default",
+          arguments: {},
+        },
+      });
+      const data = await fetchSettings();
+      applySettings(data);
+      Alert.alert("Saved", "MCP scheduling updated on this device.");
+    } catch (err) {
+      Alert.alert("Save failed", formatApiError(err, "Try again."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onRunEngine = async () => {
+    if (engineRunning) return;
+    setEngineRunning(true);
+    try {
+      await runEngineNow();
+      await refreshEngineStatus();
+      Alert.alert("Engine", "Processed pending tasks.");
+    } catch (err) {
+      Alert.alert("Engine failed", formatApiError(err, "Try again."));
+    } finally {
+      setEngineRunning(false);
+    }
+  };
+
+  const onExportAllResearch = async () => {
+    if (!isPhoneLocalMode()) {
+      Alert.alert("Phone only", "Export runs in phone-local mode (no laptop server URL).");
+      return;
+    }
+    setExportingResearch(true);
+    try {
+      await exportAllResearchLocal();
+    } catch (err) {
+      Alert.alert("Export failed", err instanceof Error ? err.message : "Try again.");
+    } finally {
+      setExportingResearch(false);
+    }
   };
 
   const onClearResearchHistory = () => {
@@ -415,7 +524,52 @@ export default function SettingsScreen() {
           autoCapitalize="none"
         />
         <Text style={typography.caption}>
-          Ollama: {ollamaReachable ? "reachable" : "not reachable"} — used for MA-18 keyword+RAG hint.
+          Ollama: {ollamaReachable ? "reachable" : "not reachable"} — embeddings for semantic RAG when
+          reachable (`nomic-embed-text`).
+        </Text>
+        <Text style={styles.fieldLabel}>Research retention</Text>
+        <View style={styles.providerRow}>
+          {(
+            [
+              [0, "Forever"],
+              [30, "30 days"],
+              [7, "7 days"],
+              [1, "1 day"],
+            ] as const
+          ).map(([days, label]) => (
+            <Pressable
+              key={days}
+              style={[
+                styles.chip,
+                researchRetentionDays === days && styles.chipActive,
+              ]}
+              onPress={() => setResearchRetentionDays(days)}
+            >
+              <Text
+                style={[
+                  styles.chipText,
+                  researchRetentionDays === days && styles.chipTextActive,
+                ]}
+              >
+                {label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        <Text style={styles.fieldLabel}>RAG search mode</Text>
+        <View style={styles.providerRow}>
+          {(["auto", "semantic", "keyword"] as const).map((m) => (
+            <Pressable
+              key={m}
+              style={[styles.chip, ragMode === m && styles.chipActive]}
+              onPress={() => setRagMode(m)}
+            >
+              <Text style={[styles.chipText, ragMode === m && styles.chipTextActive]}>{m}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <Text style={typography.caption}>
+          Active RAG: {ragActiveMode} (auto picks semantic when Ollama + embeddings exist).
         </Text>
         <View style={styles.aiActions}>
           <PrimaryButton
@@ -432,21 +586,108 @@ export default function SettingsScreen() {
         </View>
       </Card>
 
-      <Text style={styles.sectionLabel}>MCP (MA-8)</Text>
+      <Text style={styles.sectionLabel}>Task engine (MA-5)</Text>
       <Card style={styles.aiCard}>
-        <Text style={typography.body}>MCP scheduling — not enabled</Text>
-        <Text style={typography.caption}>
-          Placeholder for future laptop MCP triggers. Daily research uses the local JSON scheduler
-          today.
+        <Text style={typography.body}>
+          Queue:{" "}
+          {engineStatus
+            ? `${engineStatus.pending} pending · ${engineStatus.running} running · ${engineStatus.done} done · ${engineStatus.error} error`
+            : "—"}
         </Text>
+        <Text style={typography.caption}>
+          Tasks persist in `daily/engine-queue.json`. PhoneBootstrap ticks the processor; use Run now
+          to drain pending work immediately.
+        </Text>
+        <PrimaryButton
+          label={engineRunning ? "…" : "Run engine now"}
+          variant="secondary"
+          onPress={() => void onRunEngine()}
+          disabled={engineRunning}
+        />
       </Card>
 
-      <Text style={styles.sectionLabel}>Data on this server</Text>
+      <Text style={styles.sectionLabel}>MCP scheduling (MA-8)</Text>
+      <Card style={styles.aiCard}>
+        <View style={styles.switchRow}>
+          <Text style={typography.body}>Enable MCP</Text>
+          <Switch value={mcpEnabled} onValueChange={setMcpEnabled} />
+        </View>
+        {!mcpEnabled ? (
+          <Text style={typography.caption}>
+            Turn on to schedule HTTP MCP tool calls on this phone (results in `daily/mcp-runs.json`).
+          </Text>
+        ) : !mcpServerUrl.trim() ? (
+          <Text style={typography.caption}>
+            Add a server URL below — JSON-RPC POST to the endpoint with tool name and timeout.
+          </Text>
+        ) : (
+          <Text style={typography.caption}>Server: {mcpServerUrl.trim()}</Text>
+        )}
+        <Text style={styles.fieldLabel}>Server name</Text>
+        <TextInput style={styles.input} value={mcpServerName} onChangeText={setMcpServerName} />
+        <Text style={styles.fieldLabel}>Server URL</Text>
+        <TextInput
+          style={styles.input}
+          value={mcpServerUrl}
+          onChangeText={setMcpServerUrl}
+          placeholder="https://example.com/mcp"
+          autoCapitalize="none"
+        />
+        <Text style={styles.fieldLabel}>Tool name</Text>
+        <TextInput style={styles.input} value={mcpToolName} onChangeText={setMcpToolName} />
+        <View style={styles.switchRow}>
+          <Text style={typography.body}>Schedule MCP runs</Text>
+          <Switch value={mcpScheduleEnabled} onValueChange={setMcpScheduleEnabled} />
+        </View>
+        <View style={styles.providerRow}>
+          {(["daily", "interval"] as const).map((m) => (
+            <Pressable
+              key={m}
+              style={[styles.chip, mcpScheduleMode === m && styles.chipActive]}
+              onPress={() => setMcpScheduleMode(m)}
+            >
+              <Text
+                style={[styles.chipText, mcpScheduleMode === m && styles.chipTextActive]}
+              >
+                {m === "daily" ? "Daily time" : "Interval"}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        {mcpScheduleMode === "daily" ? (
+          <>
+            <Text style={styles.fieldLabel}>Run at (local HH:MM)</Text>
+            <TextInput
+              style={styles.input}
+              value={mcpRunTimeLocal}
+              onChangeText={setMcpRunTimeLocal}
+              placeholder="09:00"
+            />
+          </>
+        ) : (
+          <>
+            <Text style={styles.fieldLabel}>Every N minutes</Text>
+            <TextInput
+              style={styles.input}
+              value={mcpIntervalMinutes}
+              onChangeText={setMcpIntervalMinutes}
+              keyboardType="number-pad"
+            />
+          </>
+        )}
+        <PrimaryButton
+          label={saving ? "…" : "Save MCP"}
+          onPress={() => void onSaveMcp()}
+          disabled={saving}
+        />
+      </Card>
+
+      <Text style={styles.sectionLabel}>Data on this device</Text>
       <Card style={styles.row}>
         <View style={styles.rowText}>
           <Text style={typography.body}>Clear research history</Text>
           <Text style={typography.caption}>
-            Removes research sessions only (7-day auto-delete still applies).
+            Removes all saved briefings. Pruning otherwise follows your retention setting above.
           </Text>
         </View>
         <Pressable
@@ -459,9 +700,24 @@ export default function SettingsScreen() {
       </Card>
       <Card style={styles.row}>
         <View style={styles.rowText}>
+          <Text style={typography.body}>Export all research</Text>
+          <Text style={typography.caption}>
+            Share a combined markdown export (phone-local mode).
+          </Text>
+        </View>
+        <Pressable
+          style={[styles.deleteBtn, styles.exportBtn, exportingResearch && styles.deleteBtnDisabled]}
+          onPress={() => void onExportAllResearch()}
+          disabled={exportingResearch}
+        >
+          <Text style={styles.deleteBtnText}>{exportingResearch ? "…" : "Export"}</Text>
+        </Pressable>
+      </Card>
+      <Card style={styles.row}>
+        <View style={styles.rowText}>
           <Text style={typography.body}>Delete local data</Text>
           <Text style={typography.caption}>
-            Clears todos, research, daily tasks, and reminders JSON on this server.
+            Clears todos, research, daily tasks, reminders, and engine queue on this device.
           </Text>
         </View>
         <Pressable
@@ -572,5 +828,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.danger,
   },
   deleteBtnDisabled: { opacity: 0.6 },
+  exportBtn: { backgroundColor: colors.primary },
   deleteBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
 });

@@ -81,6 +81,11 @@ export async function getSettingsPublicAsync(): Promise<SettingsPublic> {
     demoMode: file.demoMode === true,
     researchProvider: normalizeProvider(file.researchProvider),
     mcpEnabled: false,
+    mcpServers: [],
+    mcpSchedule: { enabled: false, mode: "daily", runTimeLocal: "09:00", toolName: "default", arguments: {} },
+    researchRetentionDays: 30,
+    ragMode: "auto",
+    ragActiveMode: "keyword",
   };
 }
 
@@ -108,6 +113,11 @@ export function getSettingsPublic(): SettingsPublic {
     demoMode: file.demoMode === true,
     researchProvider: normalizeProvider(file.researchProvider),
     mcpEnabled: false,
+    mcpServers: [],
+    mcpSchedule: { enabled: false, mode: "daily", runTimeLocal: "09:00", toolName: "default", arguments: {} },
+    researchRetentionDays: 30,
+    ragMode: "auto",
+    ragActiveMode: "keyword",
   };
 }
 
