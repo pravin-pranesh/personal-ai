@@ -4,6 +4,8 @@ import { getDb } from "./db/database.js";
 import { dailyResearchRouter } from "./routes/dailyResearch.js";
 import { dailyResetRouter } from "./routes/dailyReset.js";
 import { dailyTasksRouter } from "./routes/dailyTasks.js";
+import { remindersRouter } from "./routes/reminders.js";
+import { taskEngineStubRouter } from "./routes/taskEngineStub.js";
 import { settingsRouter } from "./routes/settings.js";
 import { dailyTodosRouter } from "./routes/dailyTodos.js";
 import { tasksRouter } from "./routes/tasks.js";
@@ -22,6 +24,8 @@ app.use(tasksRouter);
 app.use(dailyTodosRouter);
 app.use(dailyResearchRouter);
 app.use(dailyTasksRouter);
+app.use(remindersRouter);
+app.use(taskEngineStubRouter);
 app.use(dailyResetRouter);
 app.use(settingsRouter);
 

@@ -10,6 +10,16 @@
       "bundler": "metro",
       "output": "single"
     },
-    "plugins": ["expo-router"]
+    "plugins": [
+      "expo-router",
+["expo-notifications", { "color": "#2563EB" }]
+    ],
+    "android": {
+      "permissions": [
+        "RECORD_AUDIO",
+        "POST_NOTIFICATIONS",
+        "READ_EXTERNAL_STORAGE"
+      ]
+    }
   }
 }

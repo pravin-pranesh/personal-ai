@@ -1,16 +1,8 @@
-import type { ResearchNewsCard, ResearchSession } from "@personal-ai/shared";
-import { getGeminiConfig } from "../geminiConfig.js";
-import { generateResearchWithGemini } from "../geminiResearch.js";
+import type { ResearchSession } from "@personal-ai/shared";
+import { collectResearchContent } from "./researchContent.js";
 import { createResearchSession } from "./researchStore.js";
 
 export async function runResearchPipeline(prompt: string): Promise<ResearchSession> {
-  let content: { summary: string; cards: ResearchNewsCard[] } | undefined;
-  const gemini = getGeminiConfig();
-  if (gemini) {
-    const generated = await generateResearchWithGemini(prompt, gemini);
-    if (generated) {
-      content = generated;
-    }
-  }
+  const content = await collectResearchContent(prompt);
   return createResearchSession(prompt, content);
 }

@@ -125,6 +125,8 @@ export type ResearchSession = {
   fileName: string;
   createdAt: string;
   summary: string;
+  /** Gemini-style markdown briefing (headings, bullets) when available */
+  briefingMarkdown?: string;
   cards: ResearchNewsCard[];
 };
 
@@ -136,7 +138,38 @@ export type ResearchCreateResponse = ResearchSession;
 
 export type ClearLocalDataResponse = {
   ok: boolean;
-  cleared: ("todos" | "research" | "dailyTasks")[];
+  cleared: ("todos" | "research" | "dailyTasks" | "reminders")[];
+};
+
+export type ResearchProvider = "auto" | "gemini" | "kimi" | "free";
+
+export type ReminderKind = "reminder" | "alarm";
+
+export type StoredReminder = {
+  id: string;
+  title: string;
+  kind: ReminderKind;
+  /** ISO instant when notification should fire */
+  fireAt: string;
+  createdAt: string;
+  notified?: boolean;
+};
+
+export type RemindersPayload = {
+  items: StoredReminder[];
+};
+
+export type ResearchRagHit = {
+  sessionId: string;
+  prompt: string;
+  fileName: string;
+  snippet: string;
+  score: number;
+};
+
+export type ResearchRagPayload = {
+  query: string;
+  hits: ResearchRagHit[];
 };
 
 export type DailyTaskTopic = {
@@ -174,7 +207,7 @@ export type DailyTasksPayload = {
   /** Present when status is done and session still exists */
   results?: Record<
     string,
-    Pick<ResearchSession, "summary" | "cards" | "prompt" | "createdAt">
+    Pick<ResearchSession, "summary" | "cards" | "prompt" | "createdAt" | "briefingMarkdown">
   >;
 };
 
@@ -182,9 +215,23 @@ export type SettingsPublic = {
   geminiConfigured: boolean;
   geminiModel?: string;
   geminiKeyPreview?: string;
+  kimiConfigured: boolean;
+  kimiKeyPreview?: string;
+  kimiModel?: string;
+  ollamaUrl: string;
+  ollamaReachable: boolean;
+  demoMode: boolean;
+  researchProvider: ResearchProvider;
+  /** MA-8 placeholder — MCP scheduler not wired in v1 */
+  mcpEnabled: boolean;
 };
 
 export type SettingsUpdateBody = {
   geminiApiKey?: string;
   geminiModel?: string;
+  kimiApiKey?: string;
+  kimiModel?: string;
+  ollamaUrl?: string;
+  demoMode?: boolean;
+  researchProvider?: ResearchProvider;
 };

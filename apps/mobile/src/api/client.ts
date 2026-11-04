@@ -6,10 +6,15 @@ import type {
   DailyTodosPayload,
   DashboardPayload,
   ClearLocalDataResponse,
+  ReminderKind,
+  RemindersPayload,
   ResearchCreateResponse,
   ResearchListPayload,
+  ResearchRagPayload,
+  ResearchSession,
   SettingsPublic,
   SettingsUpdateBody,
+  StoredReminder,
 } from "@personal-ai/shared";
 import { getApiBaseUrl } from "../config/api";
 
@@ -155,4 +160,48 @@ export function updateSettings(body: SettingsUpdateBody): Promise<SettingsPublic
 
 export function testGeminiSettings(): Promise<{ ok: boolean; error?: string }> {
   return request("/api/settings/test-gemini");
+}
+
+export function testOllamaSettings(): Promise<{ ok: boolean; error?: string }> {
+  return request("/api/settings/test-ollama");
+}
+
+export function fetchReminders(): Promise<RemindersPayload> {
+  return request("/api/daily/reminders");
+}
+
+export function fetchDueReminders(): Promise<RemindersPayload> {
+  return request("/api/daily/reminders/due");
+}
+
+export function createReminder(input: {
+  title: string;
+  fireAt: string;
+  kind?: ReminderKind;
+}): Promise<StoredReminder> {
+  return request("/api/daily/reminders", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function ackReminder(id: string): Promise<{ ok: boolean }> {
+  return request(`/api/daily/reminders/${encodeURIComponent(id)}/ack`, {
+    method: "POST",
+  });
+}
+
+export function deleteReminder(id: string): Promise<{ ok: boolean }> {
+  return request(`/api/daily/reminders/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+export function searchResearchRag(q: string): Promise<ResearchRagPayload> {
+  const params = new URLSearchParams({ q });
+  return request(`/api/daily/research/rag?${params.toString()}`);
+}
+
+export function fetchResearchSession(id: string): Promise<ResearchSession> {
+  return request(`/api/daily/research/${encodeURIComponent(id)}`);
 }

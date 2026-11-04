@@ -17,13 +17,16 @@ import {
   updateDailyTodo,
 } from "../../src/api/client";
 import { subscribeDailyDataCleared } from "../../src/lib/dailyDataRefresh";
+import { useMascotOverlay } from "../../src/mascot/MascotOverlayContext";
 import { OfflineBanner } from "../../src/components/ui/OfflineBanner";
 import { Card } from "../../src/components/ui/Card";
 import { PrimaryButton } from "../../src/components/ui/PrimaryButton";
 import { colors, spacing, typography } from "../../src/theme";
 
 export default function TodayScreen() {
+  const { speakCue } = useMascotOverlay();
   const [items, setItems] = useState<DailyTodo[]>([]);
+  const [nudged, setNudged] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [draft, setDraft] = useState("");
@@ -35,13 +38,21 @@ export default function TodayScreen() {
     try {
       const data = await fetchDailyTodos();
       setItems(data.items);
+      const open = data.items.filter((t) => !t.done).length;
+      if (open > 0 && !nudged) {
+        setNudged(true);
+        speakCue({
+          message: `You have ${open} todo${open === 1 ? "" : "s"} open for today.`,
+          reason: "Today",
+        });
+      }
     } catch {
       setError(true);
       setItems([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [nudged, speakCue]);
 
   useEffect(() => {
     void load();

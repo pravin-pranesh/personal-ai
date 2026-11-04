@@ -25,6 +25,7 @@ function enrichResults(
       summary: session.summary,
       cards: session.cards,
       createdAt: session.createdAt,
+      ...(session.briefingMarkdown ? { briefingMarkdown: session.briefingMarkdown } : {}),
     };
   }
   return Object.keys(results).length ? results : undefined;

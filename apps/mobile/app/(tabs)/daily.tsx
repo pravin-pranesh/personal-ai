@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -18,6 +18,8 @@ import {
   updateDailyTaskSchedule,
 } from "../../src/api/client";
 import { NewsCard } from "../../src/components/research/NewsCard";
+import { ResearchBriefing } from "../../src/components/research/ResearchBriefing";
+import { useMascotOverlay } from "../../src/mascot/MascotOverlayContext";
 import { subscribeDailyDataCleared } from "../../src/lib/dailyDataRefresh";
 import { OfflineBanner } from "../../src/components/ui/OfflineBanner";
 import { Card } from "../../src/components/ui/Card";
@@ -102,6 +104,8 @@ function WebTimeInput({ value, onChange, disabled }: WebTimeInputProps) {
 }
 
 export default function DailyTasksScreen() {
+  const { speakCue } = useMascotOverlay();
+  const announcedDone = useRef<Set<string>>(new Set());
   const [payload, setPayload] = useState<DailyTasksPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -112,20 +116,37 @@ export default function DailyTasksScreen() {
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [expandedRunId, setExpandedRunId] = useState<string | null>(null);
 
+  const applyPayload = useCallback(
+    (data: DailyTasksPayload) => {
+      for (const run of data.todayRuns) {
+        if (run.status === "done" && !announcedDone.current.has(run.id)) {
+          announcedDone.current.add(run.id);
+          const result = data.results?.[run.id];
+          speakCue({
+            message: result?.summary ?? `Daily research finished for ${run.topic}.`,
+            reason: "Daily schedule",
+          });
+        }
+      }
+      setPayload(data);
+      setRunTime(data.schedule.runTimeLocal);
+      setTimezone(data.schedule.timezone);
+    },
+    [speakCue],
+  );
+
   const load = useCallback(async () => {
     setError(false);
     try {
       const data = await fetchDailyTasks();
-      setPayload(data);
-      setRunTime(data.schedule.runTimeLocal);
-      setTimezone(data.schedule.timezone);
+      applyPayload(data);
     } catch {
       setError(true);
       setPayload(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [applyPayload]);
 
   useEffect(() => {
     void load();
@@ -135,16 +156,10 @@ export default function DailyTasksScreen() {
 
   useEffect(() => {
     const id = setInterval(() => {
-      void fetchDailyTasks()
-        .then((data) => {
-          setPayload(data);
-          setRunTime(data.schedule.runTimeLocal);
-          setTimezone(data.schedule.timezone);
-        })
-        .catch(() => {});
+      void fetchDailyTasks().then(applyPayload).catch(() => {});
     }, 60_000);
     return () => clearInterval(id);
-  }, []);
+  }, [applyPayload]);
 
   const runsByTopicId = useMemo(() => {
     const map = new Map<string, DailyTaskRun>();
@@ -310,6 +325,9 @@ export default function DailyTasksScreen() {
 
               {expanded && result ? (
                 <View style={styles.resultBlock}>
+                  {result.briefingMarkdown ? (
+                    <ResearchBriefing markdown={result.briefingMarkdown} />
+                  ) : null}
                   <Text style={styles.summaryText}>{result.summary}</Text>
                   <View style={styles.cardStack}>
                     {result.cards.map((card, i) => (

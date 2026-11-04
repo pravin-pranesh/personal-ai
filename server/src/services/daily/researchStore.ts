@@ -101,9 +101,13 @@ function buildMarkdown(session: ResearchSession): string {
     "",
     session.summary,
     "",
-    "## Headlines",
-    "",
   ];
+
+  if (session.briefingMarkdown?.trim()) {
+    lines.push("## Briefing", "", session.briefingMarkdown.trim(), "");
+  }
+
+  lines.push("## Headlines", "");
 
   for (const card of session.cards) {
     lines.push(`### ${card.title}`, "");
@@ -187,7 +191,7 @@ export function listResearchSessions(): ResearchSession[] {
 
 export function createResearchSession(
   prompt: string,
-  content?: { summary: string; cards: ResearchNewsCard[] },
+  content?: { summary: string; cards: ResearchNewsCard[]; briefingMarkdown?: string },
 ): ResearchSession {
   const trimmed = prompt.trim();
   if (!trimmed) {
@@ -209,6 +213,9 @@ export function createResearchSession(
     createdAt,
     summary,
     cards,
+    ...(content?.briefingMarkdown?.trim()
+      ? { briefingMarkdown: content.briefingMarkdown.trim() }
+      : {}),
   };
 
   writeMarkdownAtomic(fileName, buildMarkdown(session));

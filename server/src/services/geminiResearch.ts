@@ -4,6 +4,7 @@ import type { GeminiConfig } from "./geminiConfig.js";
 
 type GeminiResearchPayload = {
   summary: string;
+  briefingMarkdown?: string;
   cards: ResearchNewsCard[];
 };
 
@@ -12,7 +13,7 @@ function parsePayload(text: string): GeminiResearchPayload | null {
   const jsonBlock = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim();
   const candidate = jsonBlock ?? trimmed;
   try {
-    const parsed = JSON.parse(candidate) as GeminiResearchPayload;
+    const parsed = JSON.parse(candidate) as GeminiResearchPayload & { briefing?: string };
     if (
       !parsed ||
       typeof parsed.summary !== "string" ||
@@ -41,7 +42,17 @@ function parsePayload(text: string): GeminiResearchPayload | null {
     if (!parsed.summary.trim() || cards.length === 0) {
       return null;
     }
-    return { summary: parsed.summary.trim(), cards: cards.slice(0, 6) };
+    const briefingMarkdown =
+      typeof parsed.briefingMarkdown === "string"
+        ? parsed.briefingMarkdown.trim()
+        : typeof parsed.briefing === "string"
+          ? parsed.briefing.trim()
+          : undefined;
+    return {
+      summary: parsed.summary.trim(),
+      briefingMarkdown,
+      cards: cards.slice(0, 6),
+    };
   } catch {
     return null;
   }
@@ -57,7 +68,7 @@ export async function generateResearchWithGemini(
   const instruction = [
     "You are a research assistant. The user asked for a brief news-style briefing.",
     "Respond with JSON only (no markdown prose outside the JSON). Shape:",
-    '{"summary":"2-4 sentences","cards":[{"title":"...","snippet":"...","source":"outlet name","publishedAt":"ISO-8601 optional"}]}',
+    '{"summary":"2-4 sentences","briefingMarkdown":"markdown with ## and bullets","cards":[{"title":"...","snippet":"...","source":"outlet name","publishedAt":"ISO-8601 optional"}]}',
     "Provide 3 headline-style cards with realistic outlet names. Note uncertainty where appropriate.",
     `User topic: ${prompt.trim()}`,
   ].join("\n");

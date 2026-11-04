@@ -5,15 +5,18 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
 } from "react-native";
+import type { ResearchProvider } from "@personal-ai/shared";
 import {
   ApiRequestError,
   clearLocalDailyData,
   fetchSettings,
   testGeminiSettings,
+  testOllamaSettings,
   updateSettings,
 } from "../../src/api/client";
 import { getApiBaseUrl } from "../../src/config/api";
@@ -47,11 +50,27 @@ export default function SettingsScreen() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [kimiConfigured, setKimiConfigured] = useState(false);
+  const [kimiPreview, setKimiPreview] = useState<string>();
+  const [kimiModel, setKimiModel] = useState("moonshot-v1-8k");
+  const [kimiKeyDraft, setKimiKeyDraft] = useState("");
+  const [ollamaUrl, setOllamaUrl] = useState("http://127.0.0.1:11434");
+  const [ollamaReachable, setOllamaReachable] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
+  const [researchProvider, setResearchProvider] = useState<ResearchProvider>("auto");
+  const [testingOllama, setTestingOllama] = useState(false);
 
   const applySettings = useCallback((data: Awaited<ReturnType<typeof fetchSettings>>) => {
     setGeminiConfigured(data.geminiConfigured);
     setKeyPreview(data.geminiKeyPreview);
     setModel(data.geminiModel?.trim() || DEFAULT_GEMINI_MODEL);
+    setKimiConfigured(data.kimiConfigured);
+    setKimiPreview(data.kimiKeyPreview);
+    setKimiModel(data.kimiModel?.trim() || "moonshot-v1-8k");
+    setOllamaUrl(data.ollamaUrl);
+    setOllamaReachable(data.ollamaReachable);
+    setDemoMode(data.demoMode);
+    setResearchProvider(data.researchProvider);
   }, []);
 
   const loadSettings = useCallback(async () => {
@@ -117,6 +136,41 @@ export default function SettingsScreen() {
     }
   };
 
+  const onSaveResearchPrefs = async () => {
+    setSaving(true);
+    try {
+      await updateSettings({
+        demoMode,
+        researchProvider,
+        ollamaUrl: ollamaUrl.trim(),
+        kimiApiKey: kimiKeyDraft.trim() || undefined,
+        kimiModel: kimiModel.trim(),
+      });
+      setKimiKeyDraft("");
+      const data = await fetchSettings();
+      applySettings(data);
+      Alert.alert("Saved", "Research preferences updated.");
+    } catch (err) {
+      Alert.alert("Save failed", formatApiError(err, "Try again."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onTestOllama = async () => {
+    setTestingOllama(true);
+    try {
+      await testOllamaSettings();
+      const data = await fetchSettings();
+      applySettings(data);
+      Alert.alert("Ollama", "Reachable at configured URL.");
+    } catch (err) {
+      Alert.alert("Ollama offline", formatApiError(err, "Start Ollama on your laptop."));
+    } finally {
+      setTestingOllama(false);
+    }
+  };
+
   const onRemoveGeminiKey = () => {
     Alert.alert("Remove Gemini API key?", "Research will use sample cards until a key is set again.", [
       { text: "Cancel", style: "cancel" },
@@ -148,7 +202,10 @@ export default function SettingsScreen() {
     void clearLocalDailyData()
       .then(() => {
         notifyDailyDataCleared();
-        Alert.alert("Local data deleted", "Todos and research notes were cleared on this server.");
+        Alert.alert(
+          "Local data deleted",
+          "Todos, research, daily tasks, and reminders were cleared on this server.",
+        );
       })
       .catch(() => {
         Alert.alert("Could not delete data", "Check that the server is running and try again.");
@@ -159,7 +216,7 @@ export default function SettingsScreen() {
   const onDeleteLocalData = () => {
     Alert.alert(
       "Delete local data?",
-      "This removes todos and research notes on this server. Task catalog DB is kept.",
+      "This removes todos, research, daily schedule, and reminders on this server.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -263,12 +320,96 @@ export default function SettingsScreen() {
         )}
       </Card>
 
+      <Text style={styles.sectionLabel}>Kimi (Moonshot)</Text>
+      <Card style={styles.aiCard}>
+        <View style={styles.statusRow}>
+          <Text style={typography.body}>Kimi API</Text>
+          <Text style={[styles.statusBadge, kimiConfigured ? styles.statusConnected : styles.statusOff]}>
+            {kimiConfigured ? "Connected" : "Not connected"}
+          </Text>
+        </View>
+        {kimiPreview ? <Text style={typography.caption}>Key: {kimiPreview}</Text> : null}
+        <TextInput
+          style={styles.input}
+          placeholder="Moonshot API key"
+          placeholderTextColor={colors.textSecondary}
+          value={kimiKeyDraft}
+          onChangeText={setKimiKeyDraft}
+          secureTextEntry
+          autoCapitalize="none"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="moonshot-v1-8k"
+          value={kimiModel}
+          onChangeText={setKimiModel}
+          autoCapitalize="none"
+        />
+      </Card>
+
+      <Text style={styles.sectionLabel}>Research sources</Text>
+      <Card style={styles.aiCard}>
+        <View style={styles.switchRow}>
+          <Text style={typography.body}>Offline demo mode</Text>
+          <Switch value={demoMode} onValueChange={setDemoMode} />
+        </View>
+        <Text style={typography.caption}>
+          When on, Research uses template cards only (no Wikipedia/RSS/cloud).
+        </Text>
+        <Text style={styles.fieldLabel}>Provider priority</Text>
+        <View style={styles.providerRow}>
+          {(["auto", "gemini", "kimi", "free"] as ResearchProvider[]).map((p) => (
+            <Pressable
+              key={p}
+              style={[styles.chip, researchProvider === p && styles.chipActive]}
+              onPress={() => setResearchProvider(p)}
+            >
+              <Text style={[styles.chipText, researchProvider === p && styles.chipTextActive]}>
+                {p}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        <Text style={styles.fieldLabel}>Ollama URL (RAG / health)</Text>
+        <TextInput
+          style={styles.input}
+          value={ollamaUrl}
+          onChangeText={setOllamaUrl}
+          autoCapitalize="none"
+        />
+        <Text style={typography.caption}>
+          Ollama: {ollamaReachable ? "reachable" : "not reachable"} — used for MA-18 keyword+RAG hint.
+        </Text>
+        <View style={styles.aiActions}>
+          <PrimaryButton
+            label={saving ? "…" : "Save research prefs"}
+            onPress={() => void onSaveResearchPrefs()}
+            disabled={saving}
+          />
+          <PrimaryButton
+            label={testingOllama ? "…" : "Test Ollama"}
+            variant="secondary"
+            onPress={() => void onTestOllama()}
+            disabled={testingOllama}
+          />
+        </View>
+      </Card>
+
+      <Text style={styles.sectionLabel}>MCP (MA-8)</Text>
+      <Card style={styles.aiCard}>
+        <Text style={typography.body}>MCP scheduling — not enabled</Text>
+        <Text style={typography.caption}>
+          Placeholder for future laptop MCP triggers. Daily research uses the local JSON scheduler
+          today.
+        </Text>
+      </Card>
+
       <Text style={styles.sectionLabel}>Data on this server</Text>
       <Card style={styles.row}>
         <View style={styles.rowText}>
           <Text style={typography.body}>Delete local data</Text>
           <Text style={typography.caption}>
-            Clears todos and research markdown. Installed tasks in SQLite are kept.
+            Clears todos, research, daily tasks, and reminders JSON on this server.
           </Text>
         </View>
         <Pressable
@@ -348,6 +489,23 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   removeKeyText: { color: colors.danger, fontWeight: "600", fontSize: 14 },
+  switchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  providerRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+  chip: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  chipActive: { borderColor: colors.primary, backgroundColor: colors.primaryMuted },
+  chipText: { fontSize: 13, fontWeight: "600", color: colors.textSecondary },
+  chipTextActive: { color: colors.primary },
   row: {
     flexDirection: "row",
     alignItems: "center",
