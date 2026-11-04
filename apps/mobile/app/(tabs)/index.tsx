@@ -11,6 +11,7 @@ import {
 import { Link, useRouter } from "expo-router";
 import type { DashboardPayload } from "@personal-ai/shared";
 import { fetchDashboard, fetchHealth } from "../../src/api/client";
+import { AssistantCharacter } from "../../src/components/AssistantCharacter";
 import { TaskCard } from "../../src/components/dashboard/TaskCard";
 import { OfflineBanner } from "../../src/components/ui/OfflineBanner";
 import { PrimaryButton } from "../../src/components/ui/PrimaryButton";
@@ -69,6 +70,7 @@ export default function HomeScreen() {
     greeting: "Welcome",
     subtitle: "Start the API to load your personalized dashboard.",
   };
+  const assistantMessage = `${welcome.greeting}! ${welcome.subtitle}`;
   const featured = data?.featured ?? [];
   const favourites = data?.favourites ?? [];
   const categories = data?.categories ?? [];
@@ -76,6 +78,8 @@ export default function HomeScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       {offline ? <OfflineBanner /> : null}
+
+      <AssistantCharacter message={assistantMessage} />
 
       <Text style={typography.title}>{welcome.greeting}</Text>
       <Text style={styles.subtitle}>{welcome.subtitle}</Text>

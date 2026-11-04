@@ -2,6 +2,10 @@
 
 Mobile-first app store for AI research tasks — discover, install, and configure tasks that collect public data (Stages 1–3).
 
+## Features
+
+- Home dashboard with a talking animated assistant (Lottie body + heuristic lip-sync mouth shapes driven by `expo-speech`; syllable/word timing and optional native word boundaries — not phoneme-perfect)
+
 ## Monorepo
 
 | Package | Path |
