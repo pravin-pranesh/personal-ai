@@ -10,6 +10,35 @@ import type {
 } from "@personal-ai/shared";
 import { getApiBaseUrl } from "../config/api";
 
+export class ApiRequestError extends Error {
+  readonly status: number;
+  readonly path: string;
+
+  constructor(path: string, status: number, detail: string) {
+    super(detail ? `API ${path} failed (${status}): ${detail}` : `API ${path} failed (${status})`);
+    this.name = "ApiRequestError";
+    this.status = status;
+    this.path = path;
+  }
+}
+
+async function readErrorDetail(res: Response): Promise<string> {
+  try {
+    const body = (await res.json()) as { error?: string };
+    if (typeof body?.error === "string" && body.error.trim()) {
+      return body.error.trim();
+    }
+    return "";
+  } catch {
+    try {
+      const text = await res.text();
+      return text.trim().slice(0, 200);
+    } catch {
+      return "";
+    }
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${getApiBaseUrl()}${path}`, {
     ...init,
@@ -19,7 +48,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   if (!res.ok) {
-    throw new Error(`API ${path} failed: ${res.status}`);
+    const detail = await readErrorDetail(res);
+    throw new ApiRequestError(path, res.status, detail);
   }
   return res.json() as Promise<T>;
 }
@@ -88,4 +118,8 @@ export function updateSettings(body: SettingsUpdateBody): Promise<SettingsPublic
     method: "PUT",
     body: JSON.stringify(body),
   });
+}
+
+export function testGeminiSettings(): Promise<{ ok: boolean; error?: string }> {
+  return request("/api/settings/test-gemini");
 }

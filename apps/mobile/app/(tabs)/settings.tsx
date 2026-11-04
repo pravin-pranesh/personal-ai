@@ -9,13 +9,33 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { clearLocalDailyData, fetchSettings, updateSettings } from "../../src/api/client";
+import {
+  ApiRequestError,
+  clearLocalDailyData,
+  fetchSettings,
+  testGeminiSettings,
+  updateSettings,
+} from "../../src/api/client";
+import { getApiBaseUrl } from "../../src/config/api";
 import { Card } from "../../src/components/ui/Card";
 import { PrimaryButton } from "../../src/components/ui/PrimaryButton";
 import { notifyDailyDataCleared } from "../../src/lib/dailyDataRefresh";
 import { colors, spacing, typography } from "../../src/theme";
 
 const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash";
+
+function formatApiError(err: unknown, fallback: string): string {
+  if (err instanceof ApiRequestError) {
+    if (err.status === 404) {
+      return `${fallback} (${err.status}): settings API not found — restart the server on ${getApiBaseUrl()} and try again.`;
+    }
+    return err.message;
+  }
+  if (err instanceof Error && err.message) {
+    return err.message;
+  }
+  return fallback;
+}
 
 export default function SettingsScreen() {
   const [clearing, setClearing] = useState(false);
@@ -25,21 +45,29 @@ export default function SettingsScreen() {
   const [model, setModel] = useState(DEFAULT_GEMINI_MODEL);
   const [apiKeyDraft, setApiKeyDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+
+  const applySettings = useCallback((data: Awaited<ReturnType<typeof fetchSettings>>) => {
+    setGeminiConfigured(data.geminiConfigured);
+    setKeyPreview(data.geminiKeyPreview);
+    setModel(data.geminiModel?.trim() || DEFAULT_GEMINI_MODEL);
+  }, []);
 
   const loadSettings = useCallback(async () => {
     setSettingsLoading(true);
+    setSettingsError(null);
     try {
       const data = await fetchSettings();
-      setGeminiConfigured(data.geminiConfigured);
-      setKeyPreview(data.geminiKeyPreview);
-      setModel(data.geminiModel?.trim() || DEFAULT_GEMINI_MODEL);
-    } catch {
+      applySettings(data);
+    } catch (err) {
       setGeminiConfigured(false);
       setKeyPreview(undefined);
+      setSettingsError(formatApiError(err, "Could not load settings from the server."));
     } finally {
       setSettingsLoading(false);
     }
-  }, []);
+  }, [applySettings]);
 
   useEffect(() => {
     void loadSettings();
@@ -48,23 +76,44 @@ export default function SettingsScreen() {
   const onSaveAi = async () => {
     if (saving) return;
     setSaving(true);
+    setSettingsError(null);
     try {
+      const trimmedKey = apiKeyDraft.trim();
       const body: { geminiModel: string; geminiApiKey?: string } = {
         geminiModel: model.trim() || DEFAULT_GEMINI_MODEL,
       };
-      if (apiKeyDraft.length > 0) {
-        body.geminiApiKey = apiKeyDraft;
+      if (trimmedKey.length > 0) {
+        body.geminiApiKey = trimmedKey;
       }
-      const data = await updateSettings(body);
-      setGeminiConfigured(data.geminiConfigured);
-      setKeyPreview(data.geminiKeyPreview);
-      setModel(data.geminiModel?.trim() || DEFAULT_GEMINI_MODEL);
+      await updateSettings(body);
       setApiKeyDraft("");
+      const data = await fetchSettings();
+      applySettings(data);
       Alert.alert("Saved", "AI connection settings updated on this server.");
-    } catch {
-      Alert.alert("Save failed", "Check that the server is running and try again.");
+    } catch (err) {
+      const message = formatApiError(err, "Check that the server is running and try again.");
+      setSettingsError(message);
+      Alert.alert("Save failed", message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const onTestGemini = async () => {
+    if (testing || saving) return;
+    setTesting(true);
+    setSettingsError(null);
+    try {
+      await testGeminiSettings();
+      const data = await fetchSettings();
+      applySettings(data);
+      Alert.alert("Connected", "Gemini responded successfully using the key on this server.");
+    } catch (err) {
+      const message = formatApiError(err, "Could not reach Gemini with the saved key.");
+      setSettingsError(message);
+      Alert.alert("Test failed", message);
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -77,14 +126,16 @@ export default function SettingsScreen() {
         onPress: () => {
           setSaving(true);
           void updateSettings({ geminiApiKey: "" })
+            .then(() => fetchSettings())
             .then((data) => {
-              setGeminiConfigured(data.geminiConfigured);
-              setKeyPreview(data.geminiKeyPreview);
+              applySettings(data);
               setApiKeyDraft("");
               Alert.alert("Removed", "Gemini key cleared on this server.");
             })
-            .catch(() => {
-              Alert.alert("Could not remove key", "Try again when the server is reachable.");
+            .catch((err) => {
+              const message = formatApiError(err, "Try again when the server is reachable.");
+              setSettingsError(message);
+              Alert.alert("Could not remove key", message);
             })
             .finally(() => setSaving(false));
         },
@@ -146,12 +197,18 @@ export default function SettingsScreen() {
                 {geminiConfigured ? "Connected" : "Not connected"}
               </Text>
             </View>
+            {settingsError ? (
+              <Text style={styles.errorText}>{settingsError}</Text>
+            ) : null}
             {keyPreview ? (
               <Text style={typography.caption}>Key on server: {keyPreview}</Text>
             ) : null}
+            {apiKeyDraft.trim().length > 0 && !geminiConfigured ? (
+              <Text style={styles.saveHint}>Tap Save to connect this key to the server.</Text>
+            ) : null}
             <Text style={typography.caption}>
-              Paste an API key from Google AI Studio. Keys stay on your server — never in the
-              mobile bundle.
+              Paste an API key from Google AI Studio. Keys stay on your server ({getApiBaseUrl()})
+              — never in the mobile bundle.
             </Text>
             <TextInput
               style={styles.input}
@@ -179,13 +236,22 @@ export default function SettingsScreen() {
               <PrimaryButton
                 label={saving ? "…" : "Save"}
                 onPress={() => void onSaveAi()}
-                disabled={saving}
+                disabled={saving || testing}
                 style={styles.saveBtn}
               />
               {geminiConfigured ? (
+                <PrimaryButton
+                  label={testing ? "…" : "Test connection"}
+                  onPress={() => void onTestGemini()}
+                  disabled={saving || testing}
+                  variant="secondary"
+                  style={styles.testBtn}
+                />
+              ) : null}
+              {geminiConfigured ? (
                 <Pressable
                   onPress={onRemoveGeminiKey}
-                  disabled={saving}
+                  disabled={saving || testing}
                   accessibilityRole="button"
                   accessibilityLabel="Remove Gemini API key"
                 >
@@ -270,6 +336,17 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   saveBtn: { flex: 0 },
+  testBtn: { flex: 0 },
+  saveHint: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: "600",
+  },
+  errorText: {
+    ...typography.caption,
+    color: colors.danger,
+    fontWeight: "600",
+  },
   removeKeyText: { color: colors.danger, fontWeight: "600", fontSize: 14 },
   row: {
     flexDirection: "row",

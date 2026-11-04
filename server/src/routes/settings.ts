@@ -1,11 +1,22 @@
 import { Router } from "express";
 import type { SettingsUpdateBody } from "@personal-ai/shared";
+import { testGeminiConnection } from "../services/geminiTest.js";
 import { getSettingsPublic, updateSettings } from "../services/settingsStore.js";
 
 export const settingsRouter = Router();
 
 settingsRouter.get("/api/settings", (_req, res) => {
   res.json(getSettingsPublic());
+});
+
+settingsRouter.get("/api/settings/test-gemini", async (_req, res) => {
+  const result = await testGeminiConnection();
+  if (!result.ok) {
+    const status = result.error.includes("No Gemini") ? 400 : 502;
+    res.status(status).json({ ok: false, error: result.error });
+    return;
+  }
+  res.json({ ok: true });
 });
 
 settingsRouter.put("/api/settings", (req, res) => {
