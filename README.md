@@ -14,6 +14,14 @@ Mobile-first app store for AI research tasks — discover, install, and configur
 | API (Express + SQLite) | `server` |
 | Shared types | `packages/shared` |
 
+## Node.js
+
+- **Recommended:** Node **24 LTS** (best match for Expo SDK 58).
+- **Also supported:** Node **22.13+**, **25.x**, and **26+** (see root `package.json` `engines`).
+- Metro / React Native nested dependencies may still print **`EBADENGINE`** warnings on Node 25; they are harmless if Metro starts and serves the bundle.
+
+Use **fnm** or **nvm-windows** to switch versions. See [docs/github-setup.md](docs/github-setup.md) for clone, GitHub, and device run steps.
+
 ## Quick start (Windows)
 
 ```powershell
