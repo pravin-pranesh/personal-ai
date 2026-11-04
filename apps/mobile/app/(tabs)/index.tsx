@@ -10,6 +10,7 @@ import {
 import { Link } from "expo-router";
 import type { DashboardPayload } from "@personal-ai/shared";
 import { fetchDashboard, fetchHealth } from "../../src/api/client";
+import { isPhoneLocalMode } from "../../src/config/api";
 import { AssistantCharacter } from "../../src/components/AssistantCharacter";
 import { OfflineBanner } from "../../src/components/ui/OfflineBanner";
 import { Card } from "../../src/components/ui/Card";
@@ -24,8 +25,8 @@ export default function HomeScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     const online = await fetchHealth();
-    setOffline(!online);
-    if (!online) {
+    setOffline(!online && !isPhoneLocalMode());
+    if (!online && !isPhoneLocalMode()) {
       setData(null);
       setLoading(false);
       return;

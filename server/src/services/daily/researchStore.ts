@@ -227,6 +227,21 @@ export function createResearchSession(
   return session;
 }
 
+export function deleteResearchSession(id: string): boolean {
+  pruneOldResearchSessions();
+  const index = readIndex();
+  const session = index.sessions.find((s) => s.id === id);
+  if (!session) return false;
+
+  const filePath = path.join(RESEARCH_DIR, session.fileName);
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
+
+  saveIndex({ sessions: index.sessions.filter((s) => s.id !== id) });
+  return true;
+}
+
 export function clearResearchData(): void {
   ensureResearchDir();
   if (fs.existsSync(INDEX_PATH)) {

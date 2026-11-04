@@ -12,7 +12,11 @@ import {
   type ScrollViewInstance,
 } from "react-native";
 import type { ResearchSession } from "@personal-ai/shared";
-import { createResearchSession, fetchResearchSessions } from "../../src/api/client";
+import {
+  createResearchSession,
+  deleteResearchSession,
+  fetchResearchSessions,
+} from "../../src/api/client";
 import { AssistantOrbAvatar } from "../../src/components/research/AssistantOrbAvatar";
 import { NewsCard } from "../../src/components/research/NewsCard";
 import { ResearchBriefing } from "../../src/components/research/ResearchBriefing";
@@ -98,6 +102,26 @@ export default function ResearchScreen() {
     setMessages(sessionToMessages(session));
   };
 
+  const onDeleteSession = (session: ResearchSession) => {
+    Alert.alert("Delete briefing?", session.prompt, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          void deleteResearchSession(session.id)
+            .then(() => {
+              setHistory((prev) => prev.filter((s) => s.id !== session.id));
+              setMessages((prev) =>
+                prev.some((m) => m.id.startsWith(session.id)) ? [] : prev,
+              );
+            })
+            .catch(() => Alert.alert("Delete failed", "Try again when online."));
+        },
+      },
+    ]);
+  };
+
   const onSubmit = async () => {
     const prompt = draft.trim();
     if (!prompt || submitting) return;
@@ -174,14 +198,22 @@ export default function ResearchScreen() {
               </View>
             ) : (
               history.map((s) => (
-                <Pressable key={s.id} style={styles.historyRow} onPress={() => openSession(s)}>
-                  <Text style={styles.historyPrompt} numberOfLines={2}>
-                    {s.prompt}
-                  </Text>
-                  <Text style={typography.caption}>
-                    {new Date(s.createdAt).toLocaleString()}
-                  </Text>
-                </Pressable>
+                <View key={s.id} style={styles.historyRow}>
+                  <Pressable style={styles.historyMain} onPress={() => openSession(s)}>
+                    <Text style={styles.historyPrompt} numberOfLines={2}>
+                      {s.prompt}
+                    </Text>
+                    <Text style={typography.caption}>
+                      {new Date(s.createdAt).toLocaleString()}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => onDeleteSession(s)}
+                    accessibilityLabel="Delete session"
+                  >
+                    <Text style={styles.historyDelete}>Delete</Text>
+                  </Pressable>
+                </View>
               ))
             )}
           </ScrollView>
@@ -308,14 +340,18 @@ const styles = StyleSheet.create({
     maxWidth: 420,
   },
   historyRow: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: colors.card,
     borderRadius: 12,
     padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
-    gap: 4,
+    gap: spacing.sm,
   },
+  historyMain: { flex: 1, gap: 4 },
   historyPrompt: { ...typography.body, fontWeight: "600" },
+  historyDelete: { color: colors.danger, fontWeight: "700", fontSize: 14 },
   userRow: { flexDirection: "row", justifyContent: "flex-end" },
   userBubble: {
     maxWidth: "85%",

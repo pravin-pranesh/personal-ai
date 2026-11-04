@@ -105,6 +105,12 @@ export type DailyTodo = {
   title: string;
   done: boolean;
   createdAt: string;
+  /** Local due time HH:MM (24h) */
+  dueTime?: string;
+  /** Local due date YYYY-MM-DD; defaults to created day when dueTime set */
+  dueDate?: string;
+  /** Set when a due nudge was delivered (app/server poll) */
+  dueNotified?: boolean;
 };
 
 export type DailyTodosPayload = {

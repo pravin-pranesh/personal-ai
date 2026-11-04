@@ -12,7 +12,13 @@
     },
     "plugins": [
       "expo-router",
-["expo-notifications", { "color": "#2563EB" }]
+      [
+        "expo-notifications",
+        {
+          "color": "#2563EB"
+        }
+      ],
+      "expo-secure-store"
     ],
     "android": {
       "permissions": [

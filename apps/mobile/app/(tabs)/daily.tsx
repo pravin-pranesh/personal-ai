@@ -229,9 +229,9 @@ export default function DailyTasksScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       {error ? <OfflineBanner /> : null}
 
-      <Text style={typography.subtitle}>Daily research</Text>
+      <Text style={typography.subtitle}>Daily schedule</Text>
       <Text style={styles.hint}>
-        Add topics and a local run time. When the time passes, the server runs the same research
+        Set daily topics and time here. When the time passes, the server runs the same research
         pipeline as the Research tab (Gemini when configured, otherwise sample cards).
       </Text>
 
@@ -277,7 +277,9 @@ export default function DailyTasksScreen() {
       <Text style={styles.sectionTitle}>Today</Text>
 
       {empty ? (
-        <Text style={typography.caption}>No topics yet — add one above.</Text>
+        <Text style={typography.caption}>
+          Set daily topics and time here — add your first topic above.
+        </Text>
       ) : (
         topics.map((topic) => {
           const run = runsByTopicId.get(topic.id);

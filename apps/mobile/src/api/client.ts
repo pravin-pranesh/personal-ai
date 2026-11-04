@@ -16,7 +16,12 @@ import type {
   SettingsUpdateBody,
   StoredReminder,
 } from "@personal-ai/shared";
-import { getApiBaseUrl } from "../config/api";
+import { getApiBaseUrl, isPhoneLocalMode } from "../config/api";
+import * as dailyLocal from "../local/dailyTasksLocal";
+import * as remindersLocal from "../local/remindersLocal";
+import * as researchLocal from "../local/researchStore";
+import * as settingsLocal from "../local/settingsSecure";
+import * as todosLocal from "../local/todosLocal";
 
 export class ApiRequestError extends Error {
   readonly status: number;
@@ -48,7 +53,11 @@ async function readErrorDetail(res: Response): Promise<string> {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${getApiBaseUrl()}${path}`, {
+  const base = getApiBaseUrl();
+  if (!base) {
+    throw new ApiRequestError(path, 0, "Remote API disabled (phone-local mode)");
+  }
+  const res = await fetch(`${base}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -63,6 +72,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export async function fetchHealth(): Promise<boolean> {
+  if (isPhoneLocalMode()) return true;
   try {
     await request("/health");
     return true;
@@ -72,24 +82,60 @@ export async function fetchHealth(): Promise<boolean> {
 }
 
 export function fetchDashboard(): Promise<DashboardPayload> {
+  if (isPhoneLocalMode()) {
+    return Promise.resolve({
+      welcome: {
+        greeting: "Personal AI",
+        subtitle: "All data stays on this phone.",
+      },
+      stats: { installedCount: 0, favoriteCount: 0 },
+      featured: [],
+      favourites: [],
+      categories: [],
+      recentlyExecuted: [],
+      recentResults: [],
+    });
+  }
   return request("/dashboard");
 }
 
 export function fetchDailyTodos(): Promise<DailyTodosPayload> {
+  if (isPhoneLocalMode()) return todosLocal.listTodosLocal();
   return request("/api/daily/todos");
 }
 
-export function createDailyTodo(title: string): Promise<DailyTodo> {
+export function createDailyTodo(
+  title: string,
+  opts?: { dueTime?: string; dueDate?: string },
+): Promise<DailyTodo> {
+  if (isPhoneLocalMode()) return todosLocal.createTodoLocal(title, opts);
   return request("/api/daily/todos", {
     method: "POST",
-    body: JSON.stringify({ title }),
+    body: JSON.stringify({ title, ...opts }),
   });
+}
+
+export function fetchDueTodos(): Promise<DailyTodosPayload> {
+  if (isPhoneLocalMode()) return todosLocal.listDueTodosLocal();
+  return request("/api/daily/todos/due");
 }
 
 export function updateDailyTodo(
   id: string,
-  patch: { title?: string; done?: boolean },
+  patch: {
+    title?: string;
+    done?: boolean;
+    dueTime?: string | null;
+    dueDate?: string | null;
+    dueNotified?: boolean;
+  },
 ): Promise<DailyTodo> {
+  if (isPhoneLocalMode()) {
+    return todosLocal.updateTodoLocal(id, patch).then((t) => {
+      if (!t) throw new ApiRequestError("/todos", 404, "Not found");
+      return t;
+    });
+  }
   return request(`/api/daily/todos/${encodeURIComponent(id)}`, {
     method: "PATCH",
     body: JSON.stringify(patch),
@@ -97,16 +143,23 @@ export function updateDailyTodo(
 }
 
 export function deleteDailyTodo(id: string): Promise<{ ok: boolean }> {
+  if (isPhoneLocalMode()) {
+    return todosLocal.deleteTodoLocal(id).then((ok) => ({ ok }));
+  }
   return request(`/api/daily/todos/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
 }
 
 export function fetchResearchSessions(): Promise<ResearchListPayload> {
+  if (isPhoneLocalMode()) {
+    return researchLocal.listResearchSessionsLocal().then((sessions) => ({ sessions }));
+  }
   return request("/api/daily/research");
 }
 
 export function createResearchSession(prompt: string): Promise<ResearchCreateResponse> {
+  if (isPhoneLocalMode()) return researchLocal.createResearchSessionLocal(prompt);
   return request("/api/daily/research", {
     method: "POST",
     body: JSON.stringify({ prompt }),
@@ -114,16 +167,19 @@ export function createResearchSession(prompt: string): Promise<ResearchCreateRes
 }
 
 export function fetchDailyTasks(): Promise<DailyTasksPayload> {
+  if (isPhoneLocalMode()) return dailyLocal.fetchDailyTasksLocal();
   return request("/api/daily/tasks");
 }
 
 export function tickDailyTasks(): Promise<DailyTasksPayload> {
+  if (isPhoneLocalMode()) return dailyLocal.tickDailyTasksLocal();
   return request("/api/daily/tasks/tick", { method: "POST" });
 }
 
 export function updateDailyTaskSchedule(
   schedule: Partial<DailyTaskSchedule>,
 ): Promise<{ schedule: DailyTaskSchedule }> {
+  if (isPhoneLocalMode()) return dailyLocal.updateScheduleLocal(schedule);
   return request("/api/daily/tasks/schedule", {
     method: "PUT",
     body: JSON.stringify(schedule),
@@ -131,6 +187,7 @@ export function updateDailyTaskSchedule(
 }
 
 export function createDailyTaskTopic(topic: string): Promise<DailyTaskTopic> {
+  if (isPhoneLocalMode()) return dailyLocal.addTopicLocal(topic);
   return request("/api/daily/tasks/topics", {
     method: "POST",
     body: JSON.stringify({ topic }),
@@ -138,20 +195,32 @@ export function createDailyTaskTopic(topic: string): Promise<DailyTaskTopic> {
 }
 
 export function deleteDailyTaskTopic(id: string): Promise<{ ok: boolean }> {
+  if (isPhoneLocalMode()) {
+    return dailyLocal.deleteTopicLocal(id).then((ok) => ({ ok }));
+  }
   return request(`/api/daily/tasks/topics/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
 }
 
-export function clearLocalDailyData(): Promise<ClearLocalDataResponse> {
+export async function clearLocalDailyData(): Promise<ClearLocalDataResponse> {
+  if (isPhoneLocalMode()) {
+    await todosLocal.clearTodosLocal();
+    await researchLocal.clearResearchLocal();
+    await dailyLocal.clearDailyTasksLocal();
+    await remindersLocal.clearRemindersLocal();
+    return { ok: true, cleared: ["todos", "research", "dailyTasks", "reminders"] };
+  }
   return request("/api/daily/reset", { method: "POST" });
 }
 
 export function fetchSettings(): Promise<SettingsPublic> {
+  if (isPhoneLocalMode()) return settingsLocal.getLocalSettingsPublic();
   return request("/api/settings");
 }
 
 export function updateSettings(body: SettingsUpdateBody): Promise<SettingsPublic> {
+  if (isPhoneLocalMode()) return settingsLocal.updateLocalSettings(body);
   return request("/api/settings", {
     method: "PUT",
     body: JSON.stringify(body),
@@ -159,18 +228,22 @@ export function updateSettings(body: SettingsUpdateBody): Promise<SettingsPublic
 }
 
 export function testGeminiSettings(): Promise<{ ok: boolean; error?: string }> {
+  if (isPhoneLocalMode()) return settingsLocal.testLocalGemini();
   return request("/api/settings/test-gemini");
 }
 
 export function testOllamaSettings(): Promise<{ ok: boolean; error?: string }> {
+  if (isPhoneLocalMode()) return settingsLocal.testLocalOllama();
   return request("/api/settings/test-ollama");
 }
 
 export function fetchReminders(): Promise<RemindersPayload> {
+  if (isPhoneLocalMode()) return remindersLocal.listRemindersLocal();
   return request("/api/daily/reminders");
 }
 
 export function fetchDueReminders(): Promise<RemindersPayload> {
+  if (isPhoneLocalMode()) return remindersLocal.listDueRemindersLocal();
   return request("/api/daily/reminders/due");
 }
 
@@ -179,6 +252,7 @@ export function createReminder(input: {
   fireAt: string;
   kind?: ReminderKind;
 }): Promise<StoredReminder> {
+  if (isPhoneLocalMode()) return remindersLocal.createReminderLocal(input);
   return request("/api/daily/reminders", {
     method: "POST",
     body: JSON.stringify(input),
@@ -186,22 +260,51 @@ export function createReminder(input: {
 }
 
 export function ackReminder(id: string): Promise<{ ok: boolean }> {
+  if (isPhoneLocalMode()) {
+    return remindersLocal.ackReminderLocal(id).then(() => ({ ok: true }));
+  }
   return request(`/api/daily/reminders/${encodeURIComponent(id)}/ack`, {
     method: "POST",
   });
 }
 
 export function deleteReminder(id: string): Promise<{ ok: boolean }> {
+  if (isPhoneLocalMode()) {
+    return remindersLocal.deleteReminderLocal(id).then((ok) => ({ ok }));
+  }
   return request(`/api/daily/reminders/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
 }
 
 export function searchResearchRag(q: string): Promise<ResearchRagPayload> {
+  if (isPhoneLocalMode()) return researchLocal.searchResearchRagLocal(q);
   const params = new URLSearchParams({ q });
   return request(`/api/daily/research/rag?${params.toString()}`);
 }
 
 export function fetchResearchSession(id: string): Promise<ResearchSession> {
+  if (isPhoneLocalMode()) {
+    return researchLocal.getResearchSessionLocal(id).then((s) => {
+      if (!s) throw new ApiRequestError("/research", 404, "Not found");
+      return s;
+    });
+  }
   return request(`/api/daily/research/${encodeURIComponent(id)}`);
+}
+
+export function deleteResearchSession(id: string): Promise<{ ok: boolean }> {
+  if (isPhoneLocalMode()) {
+    return researchLocal.deleteResearchSessionLocal(id).then((ok) => ({ ok }));
+  }
+  return request(`/api/daily/research/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+export function clearAllResearchHistory(): Promise<{ ok: boolean }> {
+  if (isPhoneLocalMode()) {
+    return researchLocal.clearResearchLocal().then(() => ({ ok: true }));
+  }
+  return request("/api/daily/research", { method: "DELETE" });
 }

@@ -2,7 +2,12 @@ import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 import { Linking, Platform } from "react-native";
 import type { VoiceIntent } from "../voice/commandRouter";
-import { createReminder, createResearchSession, searchResearchRag } from "../api/client";
+import {
+  createDailyTodo,
+  createReminder,
+  createResearchSession,
+  searchResearchRag,
+} from "../api/client";
 
 export async function executeVoiceIntent(intent: VoiceIntent): Promise<string> {
   switch (intent.type) {
@@ -24,6 +29,12 @@ export async function executeVoiceIntent(intent: VoiceIntent): Promise<string> {
       const hits = await searchResearchRag(intent.query);
       if (!hits.hits.length) return "No matching notes in saved research.";
       return `Found ${hits.hits.length} note(s). Top: ${hits.hits[0].prompt}`;
+    }
+    case "todo": {
+      const dueTime = `${String(intent.fireAt.getHours()).padStart(2, "0")}:${String(intent.fireAt.getMinutes()).padStart(2, "0")}`;
+      const dueDate = intent.fireAt.toISOString().slice(0, 10);
+      await createDailyTodo(intent.title, { dueTime, dueDate });
+      return `Saved todo “${intent.title}” for ${intent.fireAt.toLocaleString()} (server JSON).`;
     }
     case "reminder":
     case "alarm": {

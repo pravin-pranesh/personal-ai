@@ -13,13 +13,14 @@ import {
 import type { ResearchProvider } from "@personal-ai/shared";
 import {
   ApiRequestError,
+  clearAllResearchHistory,
   clearLocalDailyData,
   fetchSettings,
   testGeminiSettings,
   testOllamaSettings,
   updateSettings,
 } from "../../src/api/client";
-import { getApiBaseUrl } from "../../src/config/api";
+import { getApiBaseUrl, isPhoneLocalMode } from "../../src/config/api";
 import { Card } from "../../src/components/ui/Card";
 import { PrimaryButton } from "../../src/components/ui/PrimaryButton";
 import { notifyDailyDataCleared } from "../../src/lib/dailyDataRefresh";
@@ -59,6 +60,7 @@ export default function SettingsScreen() {
   const [demoMode, setDemoMode] = useState(false);
   const [researchProvider, setResearchProvider] = useState<ResearchProvider>("auto");
   const [testingOllama, setTestingOllama] = useState(false);
+  const [clearingHistory, setClearingHistory] = useState(false);
 
   const applySettings = useCallback((data: Awaited<ReturnType<typeof fetchSettings>>) => {
     setGeminiConfigured(data.geminiConfigured);
@@ -233,9 +235,44 @@ export default function SettingsScreen() {
     );
   };
 
+  const onClearResearchHistory = () => {
+    Alert.alert("Clear research history?", "Deletes all saved briefings (markdown + index).", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Clear",
+        style: "destructive",
+        onPress: () => {
+          setClearingHistory(true);
+          void clearAllResearchHistory()
+            .then(() => {
+              notifyDailyDataCleared();
+              Alert.alert("Cleared", "Research history removed from this server.");
+            })
+            .catch(() => Alert.alert("Failed", "Check server connection."))
+            .finally(() => setClearingHistory(false));
+        },
+      },
+    ]);
+  };
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={typography.subtitle}>Preferences</Text>
+      <Text style={typography.caption}>
+        {isPhoneLocalMode()
+          ? "All data stays on this phone (document storage + SecureStore for API keys)."
+          : `Dev mode: syncing to laptop server at ${getApiBaseUrl() ?? ""}.`}
+      </Text>
+
+      <Text style={styles.sectionLabel}>Phone notifications</Text>
+      <Card style={styles.aiCard}>
+        <Text style={typography.body}>Reminders use phone notifications</Text>
+        <Text style={typography.caption}>
+          Works in background when Android allows (Expo Go has limits; dev builds are better).
+          Scheduled research runs when the server is up and the app can reach it — not true 24×7
+          while the app is killed.
+        </Text>
+      </Card>
 
       <Text style={styles.sectionLabel}>AI connection</Text>
       <Card style={styles.aiCard}>
@@ -264,8 +301,8 @@ export default function SettingsScreen() {
               <Text style={styles.saveHint}>Tap Save to connect this key to the server.</Text>
             ) : null}
             <Text style={typography.caption}>
-              Paste an API key from Google AI Studio. Keys stay on your server ({getApiBaseUrl()})
-              — never in the mobile bundle.
+              Paste an API key from Google AI Studio. Keys stay on{" "}
+              {isPhoneLocalMode() ? "this phone (SecureStore)" : `your server (${getApiBaseUrl()})`}.
             </Text>
             <TextInput
               style={styles.input}
@@ -405,6 +442,21 @@ export default function SettingsScreen() {
       </Card>
 
       <Text style={styles.sectionLabel}>Data on this server</Text>
+      <Card style={styles.row}>
+        <View style={styles.rowText}>
+          <Text style={typography.body}>Clear research history</Text>
+          <Text style={typography.caption}>
+            Removes research sessions only (7-day auto-delete still applies).
+          </Text>
+        </View>
+        <Pressable
+          style={[styles.deleteBtn, clearingHistory && styles.deleteBtnDisabled]}
+          onPress={onClearResearchHistory}
+          disabled={clearingHistory}
+        >
+          <Text style={styles.deleteBtnText}>{clearingHistory ? "…" : "Clear"}</Text>
+        </Pressable>
+      </Card>
       <Card style={styles.row}>
         <View style={styles.rowText}>
           <Text style={typography.body}>Delete local data</Text>

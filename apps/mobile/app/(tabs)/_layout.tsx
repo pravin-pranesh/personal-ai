@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import { View, StyleSheet } from "react-native";
 import { MascotOverlayProvider } from "../../src/mascot/MascotOverlayContext";
@@ -20,7 +21,17 @@ export default function TabLayout() {
     >
       <Tabs.Screen name="index" options={{ title: "Home" }} />
       <Tabs.Screen name="today" options={{ title: "Today" }} />
-      <Tabs.Screen name="daily" options={{ title: "Daily" }} />
+      <Tabs.Screen
+        name="daily"
+        options={{
+          title: "Schedule",
+          headerTitle: "Daily schedule",
+          tabBarLabel: "Schedule",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="calendar-outline" size={size} color={String(color)} />
+          ),
+        }}
+      />
       <Tabs.Screen name="research" options={{ title: "Research" }} />
       <Tabs.Screen name="settings" options={{ title: "Settings" }} />
     </Tabs>

@@ -1,6 +1,12 @@
 import { useEffect } from "react";
 import { AppState, Platform } from "react-native";
-import { listenForNotificationResponses, syncRemindersToDevice } from "../notifications/reminderSync";
+import { isPhoneLocalMode } from "../config/api";
+import { tickDailyTasks } from "../api/client";
+import { registerBackgroundReschedule } from "../notifications/backgroundReschedule";
+import {
+  listenForNotificationDelivery,
+  syncAllScheduledNotifications,
+} from "../notifications/scheduleNotifications";
 import { useMascotOverlay } from "../mascot/MascotOverlayContext";
 
 export function PhoneBootstrap() {
@@ -9,25 +15,26 @@ export function PhoneBootstrap() {
   useEffect(() => {
     if (Platform.OS === "web") return;
 
-    const onFire = (title: string) => {
+    const onFire = (payload: { title: string; kind: string }) => {
       speakCue({
-        message: title,
-        reason: "Reminder",
+        message: payload.title,
+        reason: payload.kind === "todo" ? "Todo due" : payload.kind === "daily" ? "Schedule" : "Reminder",
       });
     };
 
-    void syncRemindersToDevice(onFire);
-    const unsub = listenForNotificationResponses((title) => onFire(title));
+    void registerBackgroundReschedule();
+    const syncAll = () => {
+      void syncAllScheduledNotifications(onFire);
+      if (isPhoneLocalMode()) void tickDailyTasks();
+    };
+    syncAll();
+    const unsub = listenForNotificationDelivery(onFire);
 
     const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active") {
-        void syncRemindersToDevice(onFire);
-      }
+      if (state === "active") syncAll();
     });
 
-    const interval = setInterval(() => {
-      void syncRemindersToDevice(onFire);
-    }, 60_000);
+    const interval = setInterval(syncAll, 60_000);
 
     return () => {
       unsub();

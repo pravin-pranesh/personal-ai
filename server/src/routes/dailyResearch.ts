@@ -1,5 +1,10 @@
 import { Router } from "express";
-import { getResearchSessionById, listResearchSessions } from "../services/daily/researchStore.js";
+import {
+  clearResearchData,
+  deleteResearchSession,
+  getResearchSessionById,
+  listResearchSessions,
+} from "../services/daily/researchStore.js";
 import { runResearchPipeline } from "../services/daily/researchRunner.js";
 import { searchSavedResearch } from "../services/researchRag.js";
 
@@ -22,6 +27,20 @@ dailyResearchRouter.get("/api/daily/research/:id", (req, res) => {
     return;
   }
   res.json(session);
+});
+
+dailyResearchRouter.delete("/api/daily/research", (_req, res) => {
+  clearResearchData();
+  res.json({ ok: true });
+});
+
+dailyResearchRouter.delete("/api/daily/research/:id", (req, res) => {
+  const ok = deleteResearchSession(req.params.id);
+  if (!ok) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+  res.json({ ok: true });
 });
 
 dailyResearchRouter.post("/api/daily/research", async (req, res) => {
