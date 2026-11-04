@@ -15,6 +15,9 @@
   "scripts": {
     "mobile": "npm --prefix apps/mobile run start",
     "mobile:web": "npm --prefix apps/mobile run web",
+    "mobile:icons": "node apps/mobile/scripts/write-placeholder-icon.mjs",
+    "mobile:build:apk": "npm --prefix apps/mobile exec -- eas build --platform android --profile preview",
+    "mobile:build:apk:local": "npm --prefix apps/mobile exec -- eas build --platform android --profile preview --local",
     "server": "npm run dev --workspace=@personal-ai/server",
     "typecheck": "npm run typecheck --workspaces --if-present"
   }

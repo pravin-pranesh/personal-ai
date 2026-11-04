@@ -26,6 +26,9 @@ type PrefsFile = {
   mcpSchedule?: McpScheduleConfig;
   researchRetentionDays?: ResearchRetentionDays;
   ragMode?: RagMode;
+  overlayAssistantEnabled?: boolean;
+  assistantName?: string;
+  overlayUse3dAvatar?: boolean;
 };
 
 const DEFAULT_MCP_SCHEDULE: McpScheduleConfig = {
@@ -95,6 +98,9 @@ export async function getLocalSettingsPublic(): Promise<SettingsPublic> {
     researchRetentionDays: prefs.researchRetentionDays ?? 30,
     ragMode,
     ragActiveMode: await resolveRagActiveMode(ragMode, ollamaReachable),
+    overlayAssistantEnabled: prefs.overlayAssistantEnabled === true,
+    assistantName: prefs.assistantName?.trim() || "Assistant",
+    overlayUse3dAvatar: prefs.overlayUse3dAvatar !== false,
   };
 }
 
@@ -136,6 +142,15 @@ export async function updateLocalSettings(patch: SettingsUpdateBody): Promise<Se
     prefs.researchRetentionDays = patch.researchRetentionDays;
   }
   if (patch.ragMode !== undefined) prefs.ragMode = patch.ragMode;
+  if (patch.overlayAssistantEnabled !== undefined) {
+    prefs.overlayAssistantEnabled = patch.overlayAssistantEnabled;
+  }
+  if (patch.assistantName !== undefined) {
+    prefs.assistantName = patch.assistantName.trim() || "Assistant";
+  }
+  if (patch.overlayUse3dAvatar !== undefined) {
+    prefs.overlayUse3dAvatar = patch.overlayUse3dAvatar;
+  }
 
   await writePrefs(prefs);
   return getLocalSettingsPublic();

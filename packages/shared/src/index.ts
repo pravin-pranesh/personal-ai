@@ -298,6 +298,12 @@ export type SettingsPublic = {
   researchRetentionDays: ResearchRetentionDays;
   ragMode: RagMode;
   ragActiveMode: "semantic" | "keyword";
+  /** Android system overlay + foreground service (Play build) */
+  overlayAssistantEnabled: boolean;
+  /** Wake phrase name, e.g. "Mira" */
+  assistantName: string;
+  /** Prefer 3D GL avatar in overlay bubble (fallback 2D Lottie on low-end) */
+  overlayUse3dAvatar: boolean;
 };
 
 export type SettingsUpdateBody = {
@@ -313,4 +319,7 @@ export type SettingsUpdateBody = {
   mcpSchedule?: Partial<McpScheduleConfig>;
   researchRetentionDays?: ResearchRetentionDays;
   ragMode?: RagMode;
+  overlayAssistantEnabled?: boolean;
+  assistantName?: string;
+  overlayUse3dAvatar?: boolean;
 };

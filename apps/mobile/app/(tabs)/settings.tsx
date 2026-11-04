@@ -29,6 +29,9 @@ import {
   updateSettings,
 } from "../../src/api/client";
 import { getApiBaseUrl, isPhoneLocalMode } from "../../src/config/api";
+import { isOverlayNativeModuleAvailable } from "../../modules/overlay-assistant";
+import { openOverlayPermissionSettings } from "../../src/overlay/overlayController";
+import { useOverlayAssistant } from "../../src/overlay/OverlayAssistantProvider";
 import { Card } from "../../src/components/ui/Card";
 import { PrimaryButton } from "../../src/components/ui/PrimaryButton";
 import { notifyDailyDataCleared } from "../../src/lib/dailyDataRefresh";
@@ -50,6 +53,7 @@ function formatApiError(err: unknown, fallback: string): string {
 }
 
 export default function SettingsScreen() {
+  const { refreshOverlayFromSettings, runtimeMode } = useOverlayAssistant();
   const [clearing, setClearing] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [geminiConfigured, setGeminiConfigured] = useState(false);
@@ -83,6 +87,9 @@ export default function SettingsScreen() {
   const [ragMode, setRagMode] = useState<RagMode>("auto");
   const [ragActiveMode, setRagActiveMode] = useState<"semantic" | "keyword">("keyword");
   const [exportingResearch, setExportingResearch] = useState(false);
+  const [overlayAssistantEnabled, setOverlayAssistantEnabled] = useState(false);
+  const [assistantName, setAssistantName] = useState("Assistant");
+  const [overlayUse3dAvatar, setOverlayUse3dAvatar] = useState(true);
 
   const applySettings = useCallback((data: Awaited<ReturnType<typeof fetchSettings>>) => {
     setGeminiConfigured(data.geminiConfigured);
@@ -107,6 +114,9 @@ export default function SettingsScreen() {
     setResearchRetentionDays(data.researchRetentionDays);
     setRagMode(data.ragMode);
     setRagActiveMode(data.ragActiveMode);
+    setOverlayAssistantEnabled(data.overlayAssistantEnabled);
+    setAssistantName(data.assistantName?.trim() || "Assistant");
+    setOverlayUse3dAvatar(data.overlayUse3dAvatar !== false);
   }, []);
 
   const refreshEngineStatus = useCallback(async () => {
@@ -372,6 +382,74 @@ export default function SettingsScreen() {
           ? "All data stays on this phone (document storage + SecureStore for API keys)."
           : `Dev mode: syncing to laptop server at ${getApiBaseUrl() ?? ""}.`}
       </Text>
+
+      <Text style={styles.sectionLabel}>On-screen assistant (MA-38–40)</Text>
+      <Card style={styles.aiCard}>
+        <View style={styles.switchRow}>
+          <Text style={typography.body}>Show assistant on screen</Text>
+          <Switch
+            value={overlayAssistantEnabled}
+            onValueChange={(v) => setOverlayAssistantEnabled(v)}
+          />
+        </View>
+        <Text style={typography.caption}>
+          {isOverlayNativeModuleAvailable()
+            ? `Native overlay: ${runtimeMode}. Requires display-over-other-apps permission.`
+            : "Expo Go / web: in-app draggable bubble only. Use EAS Android build for system overlay."}
+        </Text>
+        <Text style={typography.caption}>
+          Battery: foreground overlay + mic use extra power. Disable when not needed. Some OEMs
+          may stop the service unless battery optimization is off for this app.
+        </Text>
+        <Text style={styles.fieldLabel}>Assistant name (wake phrase)</Text>
+        <TextInput
+          style={styles.input}
+          value={assistantName}
+          onChangeText={setAssistantName}
+          placeholder="Assistant"
+        />
+        <View style={styles.switchRow}>
+          <Text style={typography.body}>3D avatar in bubble</Text>
+          <Switch value={overlayUse3dAvatar} onValueChange={setOverlayUse3dAvatar} />
+        </View>
+        <View style={styles.aiActions}>
+          <PrimaryButton
+            label={saving ? "…" : "Save overlay"}
+            onPress={() =>
+              void (async () => {
+                setSaving(true);
+                try {
+                  await updateSettings({
+                    overlayAssistantEnabled,
+                    assistantName: assistantName.trim() || "Assistant",
+                    overlayUse3dAvatar,
+                  });
+                  await refreshOverlayFromSettings();
+                  const data = await fetchSettings();
+                  applySettings(data);
+                  Alert.alert("Saved", "Overlay assistant updated.");
+                } catch (err) {
+                  Alert.alert("Save failed", formatApiError(err, "Try again."));
+                } finally {
+                  setSaving(false);
+                }
+              })()
+            }
+            disabled={saving}
+          />
+          {isOverlayNativeModuleAvailable() ? (
+            <PrimaryButton
+              label="Overlay permission"
+              variant="secondary"
+              onPress={() =>
+                void openOverlayPermissionSettings().catch((err) =>
+                  Alert.alert("Settings", err instanceof Error ? err.message : "Unavailable"),
+                )
+              }
+            />
+          ) : null}
+        </View>
+      </Card>
 
       <Text style={styles.sectionLabel}>Phone notifications</Text>
       <Card style={styles.aiCard}>

@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import { View, StyleSheet } from "react-native";
 import { MascotOverlayProvider } from "../../src/mascot/MascotOverlayContext";
+import { OverlayAssistantProvider } from "../../src/overlay/OverlayAssistantProvider";
 import { PhoneBootstrap } from "../../src/phone/PhoneBootstrap";
 import { FloatingVoiceButton } from "../../src/voice/FloatingVoiceButton";
 import { colors } from "../../src/theme";
@@ -9,6 +10,7 @@ import { colors } from "../../src/theme";
 export default function TabLayout() {
   return (
     <MascotOverlayProvider>
+      <OverlayAssistantProvider>
       <PhoneBootstrap />
       <View style={styles.shell}>
     <Tabs
@@ -37,6 +39,7 @@ export default function TabLayout() {
     </Tabs>
       <FloatingVoiceButton />
       </View>
+      </OverlayAssistantProvider>
     </MascotOverlayProvider>
   );
 }

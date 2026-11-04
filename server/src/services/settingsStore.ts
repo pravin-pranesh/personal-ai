@@ -86,6 +86,9 @@ export async function getSettingsPublicAsync(): Promise<SettingsPublic> {
     researchRetentionDays: 30,
     ragMode: "auto",
     ragActiveMode: "keyword",
+    overlayAssistantEnabled: false,
+    assistantName: "Assistant",
+    overlayUse3dAvatar: true,
   };
 }
 
@@ -118,6 +121,9 @@ export function getSettingsPublic(): SettingsPublic {
     researchRetentionDays: 30,
     ragMode: "auto",
     ragActiveMode: "keyword",
+    overlayAssistantEnabled: false,
+    assistantName: "Assistant",
+    overlayUse3dAvatar: true,
   };
 }
 
