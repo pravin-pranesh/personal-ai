@@ -48,7 +48,7 @@ function dateStamp(iso: string): string {
   return iso.slice(0, 10);
 }
 
-function stubCardsFromPrompt(prompt: string): ResearchNewsCard[] {
+export function stubCardsFromPrompt(prompt: string): ResearchNewsCard[] {
   const topic = prompt.trim();
   const label = topic.length > 60 ? `${topic.slice(0, 57)}…` : topic;
   const now = new Date();
@@ -77,7 +77,7 @@ function stubCardsFromPrompt(prompt: string): ResearchNewsCard[] {
   ];
 }
 
-function buildSummary(prompt: string, cards: ResearchNewsCard[]): string {
+export function buildStubSummary(prompt: string, cards: ResearchNewsCard[]): string {
   const topic = prompt.trim();
   return (
     `Here’s a quick read on “${topic}”. I found ${cards.length} headline-style items ` +
@@ -127,7 +127,10 @@ export function listResearchSessions(): ResearchSession[] {
   );
 }
 
-export function createResearchSession(prompt: string): ResearchSession {
+export function createResearchSession(
+  prompt: string,
+  content?: { summary: string; cards: ResearchNewsCard[] },
+): ResearchSession {
   const trimmed = prompt.trim();
   if (!trimmed) {
     throw new Error("Prompt is required");
@@ -137,8 +140,8 @@ export function createResearchSession(prompt: string): ResearchSession {
   const slug = slugify(trimmed);
   const id = crypto.randomUUID();
   const fileName = `${slug}-${dateStamp(createdAt)}.md`;
-  const cards = stubCardsFromPrompt(trimmed);
-  const summary = buildSummary(trimmed, cards);
+  const cards = content?.cards ?? stubCardsFromPrompt(trimmed);
+  const summary = content?.summary ?? buildStubSummary(trimmed, cards);
 
   const session: ResearchSession = {
     id,

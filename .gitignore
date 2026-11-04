@@ -3,6 +3,7 @@ dist/
 .expo/
 *.db
 server/data/
+server/data/settings.json
 .DS_Store
 *.log
 .env

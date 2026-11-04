@@ -6,8 +6,8 @@ Mobile-first app store for AI research tasks — discover, install, and configur
 
 - Home dashboard with a talking animated assistant (Lottie body + heuristic lip-sync mouth shapes; **web** uses the Web Speech API, native uses `expo-speech` — syllable/word timing, not phoneme-perfect)
 - **Today** tab — daily todos stored in `server/data/daily/todos.json` via `GET/POST/PATCH/DELETE /api/daily/todos`
-- **Research** tab — Grok-style chat: type any topic, get a summary plus headline cards; sessions saved as markdown under `server/data/daily/research/` with `index.json` via `GET/POST /api/daily/research` (sample cards until RSS in MA-6)
-- **Settings → Delete local data** — `POST /api/daily/reset` clears daily todos and research files only (SQLite task catalog is kept)
+- **Research** tab — Grok-style chat: type any topic, get a summary plus headline cards; sessions saved as markdown under `server/data/daily/research/` with `index.json` via `GET/POST /api/daily/research` (Gemini when a key is configured; otherwise sample cards until RSS in MA-6)
+- **Settings** — save a **Gemini API key** on the server (`PUT /api/settings`, stored in gitignored `server/data/settings.json`) or set `GEMINI_API_KEY` in the server environment; Research uses Gemini when configured, otherwise sample cards. **Delete local data** — `POST /api/daily/reset` clears daily todos and research files only (SQLite task catalog is kept)
 
 ## Monorepo
 

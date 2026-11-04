@@ -138,3 +138,14 @@ export type ClearLocalDataResponse = {
   ok: boolean;
   cleared: ("todos" | "research")[];
 };
+
+export type SettingsPublic = {
+  geminiConfigured: boolean;
+  geminiModel?: string;
+  geminiKeyPreview?: string;
+};
+
+export type SettingsUpdateBody = {
+  geminiApiKey?: string;
+  geminiModel?: string;
+};

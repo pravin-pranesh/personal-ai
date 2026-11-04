@@ -3,6 +3,7 @@ import express from "express";
 import { getDb } from "./db/database.js";
 import { dailyResearchRouter } from "./routes/dailyResearch.js";
 import { dailyResetRouter } from "./routes/dailyReset.js";
+import { settingsRouter } from "./routes/settings.js";
 import { dailyTodosRouter } from "./routes/dailyTodos.js";
 import { tasksRouter } from "./routes/tasks.js";
 
@@ -18,6 +19,7 @@ app.use(tasksRouter);
 app.use(dailyTodosRouter);
 app.use(dailyResearchRouter);
 app.use(dailyResetRouter);
+app.use(settingsRouter);
 
 app.listen(PORT, HOST, () => {
   console.log(`Personal AI API listening on http://${HOST}:${PORT}`);

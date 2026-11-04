@@ -6,6 +6,8 @@ import type {
   ClearLocalDataResponse,
   ResearchCreateResponse,
   ResearchListPayload,
+  SettingsPublic,
+  SettingsUpdateBody,
   TaskDefinitionSummary,
   TaskDetail,
 } from "@personal-ai/shared";
@@ -127,4 +129,15 @@ export function createResearchSession(prompt: string): Promise<ResearchCreateRes
 
 export function clearLocalDailyData(): Promise<ClearLocalDataResponse> {
   return request("/api/daily/reset", { method: "POST" });
+}
+
+export function fetchSettings(): Promise<SettingsPublic> {
+  return request("/api/settings");
+}
+
+export function updateSettings(body: SettingsUpdateBody): Promise<SettingsPublic> {
+  return request("/api/settings", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
 }
