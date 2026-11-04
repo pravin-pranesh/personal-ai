@@ -5,6 +5,7 @@ Mobile-first app store for AI research tasks — discover, install, and configur
 ## Features
 
 - Home dashboard with a talking animated assistant (Lottie body + heuristic lip-sync mouth shapes; **web** uses the Web Speech API, native uses `expo-speech` — syllable/word timing, not phoneme-perfect)
+- **Today** tab — daily todos stored in `server/data/daily/todos.json` via `GET/POST/PATCH/DELETE /api/daily/todos`
 
 ## Monorepo
 
@@ -32,10 +33,13 @@ npm run typecheck
 # Terminal 1 — API on :3001
 npm run server
 
-# Terminal 2 — Expo
+# Terminal 2 — Expo (web-first)
 $env:EXPO_PUBLIC_API_URL = "http://localhost:3001"
-npm run mobile
+npm run mobile:web
+# or: npm run mobile
 ```
+
+Open the **Today** tab to add, complete, and delete todos. Data persists in `server/data/daily/todos.json` on the machine running the API.
 
 For phone testing on LAN, use `LOCAL-RUN.ps1`.
 

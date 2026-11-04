@@ -1,4 +1,6 @@
 import type {
+  DailyTodo,
+  DailyTodosPayload,
   DashboardPayload,
   InstalledPayload,
   TaskDefinitionSummary,
@@ -80,4 +82,31 @@ export function unfavoriteTask(id: string): Promise<{ ok: boolean }> {
 
 export function fetchInstalled(): Promise<InstalledPayload> {
   return request("/installed");
+}
+
+export function fetchDailyTodos(): Promise<DailyTodosPayload> {
+  return request("/api/daily/todos");
+}
+
+export function createDailyTodo(title: string): Promise<DailyTodo> {
+  return request("/api/daily/todos", {
+    method: "POST",
+    body: JSON.stringify({ title }),
+  });
+}
+
+export function updateDailyTodo(
+  id: string,
+  patch: { title?: string; done?: boolean },
+): Promise<DailyTodo> {
+  return request(`/api/daily/todos/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+export function deleteDailyTodo(id: string): Promise<{ ok: boolean }> {
+  return request(`/api/daily/todos/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
 }

@@ -99,3 +99,14 @@ export type InstalledPayload = {
   favorites: TaskDefinitionSummary[];
   recentlyUsed: InstalledTaskRow[];
 };
+
+export type DailyTodo = {
+  id: string;
+  title: string;
+  done: boolean;
+  createdAt: string;
+};
+
+export type DailyTodosPayload = {
+  items: DailyTodo[];
+};
