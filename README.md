@@ -4,7 +4,7 @@ Mobile-first app store for AI research tasks — discover, install, and configur
 
 ## Features
 
-- Home dashboard with a talking animated assistant (Lottie body + heuristic lip-sync mouth shapes driven by `expo-speech`; syllable/word timing and optional native word boundaries — not phoneme-perfect)
+- Home dashboard with a talking animated assistant (Lottie body + heuristic lip-sync mouth shapes; **web** uses the Web Speech API, native uses `expo-speech` — syllable/word timing, not phoneme-perfect)
 
 ## Monorepo
 

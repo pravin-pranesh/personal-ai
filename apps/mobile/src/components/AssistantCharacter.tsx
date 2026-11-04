@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import LottieView from "lottie-react-native";
-import * as Speech from "expo-speech";
 import { colors, spacing, typography } from "../theme";
+import {
+  speakAssistantMessage,
+  stopAssistantSpeech,
+} from "./assistant/assistantSpeech";
 import {
   buildVisemeTimeline,
   visemeAtCharIndex,
@@ -85,32 +89,33 @@ export function AssistantCharacter({
   }, [pulse, stopVisemePlayback]);
 
   const stopSpeaking = useCallback(() => {
-    Speech.stop();
+    stopAssistantSpeech();
     clearAll();
   }, [clearAll]);
 
   const startSpeaking = useCallback(() => {
     setSpeaking(true);
-    Speech.speak(message, {
-      onStart: () => {
-        startVisemePlayback();
-      },
-      onBoundary: (event: unknown) => {
-        if (
-          event &&
-          typeof event === "object" &&
-          "charIndex" in event &&
-          typeof (event as { charIndex: unknown }).charIndex === "number"
-        ) {
-          setViseme(
-            visemeAtCharIndex(message, (event as { charIndex: number }).charIndex),
-          );
-        }
+    let visemeStarted = false;
+    const ensureVisemeStart = () => {
+      if (visemeStarted) {
+        return;
+      }
+      visemeStarted = true;
+      startVisemePlayback();
+    };
+
+    speakAssistantMessage(message, {
+      onStart: () => ensureVisemeStart(),
+      onBoundary: (charIndex) => {
+        setViseme(visemeAtCharIndex(message, charIndex));
       },
       onDone: () => clearAll(),
       onStopped: () => clearAll(),
       onError: () => clearAll(),
     });
+
+    // Web Speech / TTS can delay onstart; keep mouth moving once user tapped Listen.
+    setTimeout(() => ensureVisemeStart(), Platform.OS === "web" ? 80 : 200);
   }, [clearAll, message, startVisemePlayback]);
 
   const toggleSpeech = useCallback(() => {
@@ -137,12 +142,12 @@ export function AssistantCharacter({
         Animated.timing(pulse, {
           toValue: 1.06,
           duration: 280,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== "web",
         }),
         Animated.timing(pulse, {
           toValue: 1,
           duration: 280,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== "web",
         }),
       ]),
     );
@@ -157,7 +162,7 @@ export function AssistantCharacter({
       if (visemeTimer.current) {
         clearTimeout(visemeTimer.current);
       }
-      Speech.stop();
+      stopAssistantSpeech();
     };
   }, []);
 
