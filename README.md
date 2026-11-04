@@ -1,13 +1,17 @@
-# Personal AI Task Store
+# Personal AI
 
-Mobile-first app store for AI research tasks — discover, install, and configure tasks that collect public data (Stages 1–3).
+Mobile-first **daily assistant** — todos, research chat, and a talking home mascot. The Task Store marketplace has been removed from the mobile UI; the app focuses on day-to-day use.
 
 ## Features
 
-- Home dashboard with a talking animated assistant (Lottie body + heuristic lip-sync mouth shapes; **web** uses the Web Speech API, native uses `expo-speech` — syllable/word timing, not phoneme-perfect)
+- **Home** — welcome dashboard with a talking animated assistant (Lottie body + heuristic lip-sync mouth shapes; **web** uses the Web Speech API, native uses `expo-speech` — syllable/word timing, not phoneme-perfect), shortcuts to Today and Research, and recent research previews
 - **Today** tab — daily todos stored in `server/data/daily/todos.json` via `GET/POST/PATCH/DELETE /api/daily/todos`
 - **Research** tab — Grok-style chat: type any topic, get a summary plus headline cards; sessions saved as markdown under `server/data/daily/research/` with `index.json` via `GET/POST /api/daily/research` (Gemini when a key is configured; otherwise sample cards until RSS in MA-6)
-- **Settings** — save a **Gemini API key** on the server (`PUT /api/settings`, stored in gitignored `server/data/settings.json`) or set `GEMINI_API_KEY` in the server environment; Research uses Gemini when configured, otherwise sample cards. **Delete local data** — `POST /api/daily/reset` clears daily todos and research files only (SQLite task catalog is kept)
+- **Settings** — save a **Gemini API key** on the server (`PUT /api/settings`, stored in gitignored `server/data/settings.json`) or set `GEMINI_API_KEY` in the server environment; Research uses Gemini when configured, otherwise sample cards. **Delete local data** — `POST /api/daily/reset` clears daily todos and research files only (SQLite task catalog on the server is unchanged)
+
+### Legacy server APIs
+
+The Express server still exposes `/tasks`, `/installed`, and `/dashboard` catalog endpoints (SQLite-backed) for backward compatibility. The mobile app no longer calls them except `/dashboard` for welcome text and recent research snippets.
 
 ## Monorepo
 

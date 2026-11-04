@@ -1,26 +1,22 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { Link, useRouter } from "expo-router";
+import { Link } from "expo-router";
 import type { DashboardPayload } from "@personal-ai/shared";
 import { fetchDashboard, fetchHealth } from "../../src/api/client";
 import { AssistantCharacter } from "../../src/components/AssistantCharacter";
-import { TaskCard } from "../../src/components/dashboard/TaskCard";
 import { OfflineBanner } from "../../src/components/ui/OfflineBanner";
-import { PrimaryButton } from "../../src/components/ui/PrimaryButton";
 import { Card } from "../../src/components/ui/Card";
 import { sampleDashboardFallback } from "../../src/data/sampleDashboard";
 import { colors, spacing, typography } from "../../src/theme";
 
 export default function HomeScreen() {
-  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
   const [data, setData] = useState<DashboardPayload | null>(null);
@@ -49,10 +45,6 @@ export default function HomeScreen() {
     void load();
   }, [load]);
 
-  const recentlyExecuted =
-    data?.recentlyExecuted?.length
-      ? data.recentlyExecuted
-      : sampleDashboardFallback.recentlyExecuted;
   const recentResults =
     data?.recentResults?.length
       ? data.recentResults
@@ -68,12 +60,9 @@ export default function HomeScreen() {
 
   const welcome = data?.welcome ?? {
     greeting: "Welcome",
-    subtitle: "Start the API to load your personalized dashboard.",
+    subtitle: "Your daily assistant — todos and research in one place.",
   };
   const assistantMessage = `${welcome.greeting}! ${welcome.subtitle}`;
-  const featured = data?.featured ?? [];
-  const favourites = data?.favourites ?? [];
-  const categories = data?.categories ?? [];
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -84,91 +73,48 @@ export default function HomeScreen() {
       <Text style={typography.title}>{welcome.greeting}</Text>
       <Text style={styles.subtitle}>{welcome.subtitle}</Text>
 
-      {data ? (
-        <Text style={styles.stats}>
-          {data.stats.installedCount} installed · {data.stats.favoriteCount}{" "}
-          favourites
-        </Text>
-      ) : null}
-
-      <Section title="Featured tasks">
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {featured.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onPress={() => router.push(`/task/${task.id}`)}
-            />
-          ))}
-        </ScrollView>
-      </Section>
-
-      <Section title="Recently executed">
-        {recentlyExecuted.map((row) => (
-          <Card key={row.id} style={styles.listRow}>
-            <Text style={styles.rowIcon}>{row.icon}</Text>
-            <View style={styles.rowBody}>
-              <Text style={typography.subtitle}>{row.taskName}</Text>
+      <Section title="Today">
+        <Link href="/today" asChild>
+          <Pressable style={styles.navTile}>
+            <Text style={styles.navEmoji}>✓</Text>
+            <View style={styles.navBody}>
+              <Text style={typography.subtitle}>Todos</Text>
               <Text style={typography.caption}>
-                {new Date(row.completedAt).toLocaleString()}
+                Add, complete, and clear your list for the day.
               </Text>
             </View>
-          </Card>
-        ))}
+          </Pressable>
+        </Link>
       </Section>
 
-      <Section title="Favourites">
-        <View style={styles.chipRow}>
-          {favourites.length === 0 ? (
-            <Text style={typography.caption}>No favourites yet — star tasks in the store.</Text>
-          ) : (
-            favourites.map((f) => (
-              <Pressable
-                key={f.id}
-                style={styles.chip}
-                onPress={() => router.push(`/task/${f.id}`)}
-              >
-                <Text style={typography.caption}>
-                  {f.icon} {f.name}
-                </Text>
-              </Pressable>
-            ))
-          )}
-        </View>
+      <Section title="Research">
+        <Link href="/research" asChild>
+          <Pressable style={styles.navTile}>
+            <Text style={styles.navEmoji}>🔍</Text>
+            <View style={styles.navBody}>
+              <Text style={typography.subtitle}>Ask anything</Text>
+              <Text style={typography.caption}>
+                Chat-style summaries and headline cards on any topic.
+              </Text>
+            </View>
+          </Pressable>
+        </Link>
       </Section>
 
-      <Section title="Popular categories">
-        <View style={styles.grid}>
-          {categories.map((c) => (
-            <Link key={c.id} href={{ pathname: "/store", params: { category: c.id } }} asChild>
-              <Pressable style={styles.categoryTile}>
-                <Text style={typography.subtitle}>{c.label}</Text>
-                <Text style={typography.caption}>{c.taskCount} tasks</Text>
-              </Pressable>
-            </Link>
-          ))}
-        </View>
-      </Section>
-
-      <PrimaryButton
-        label="Quick run (Stage 4)"
-        onPress={() =>
-          Alert.alert(
-            "Coming in Stage 4",
-            "Execution engine and run UI are not wired yet.",
-          )
-        }
-        style={{ marginTop: spacing.md }}
-      />
-
-      <Section title="Recent research results">
-        {recentResults.map((r) => (
-          <Card key={r.id} style={styles.resultCard}>
-            <Text style={typography.subtitle}>{r.title}</Text>
-            <Text style={typography.caption}>{r.taskName}</Text>
-            <Text style={typography.body}>{r.preview}</Text>
-          </Card>
-        ))}
+      <Section title="Recent research">
+        {recentResults.length === 0 ? (
+          <Text style={typography.caption}>
+            No research yet — open the Research tab to start.
+          </Text>
+        ) : (
+          recentResults.map((r) => (
+            <Card key={r.id} style={styles.resultCard}>
+              <Text style={typography.subtitle}>{r.title}</Text>
+              <Text style={typography.caption}>{r.taskName}</Text>
+              <Text style={typography.body}>{r.preview}</Text>
+            </Card>
+          ))
+        )}
       </Section>
     </ScrollView>
   );
@@ -199,32 +145,19 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   subtitle: { ...typography.body, color: colors.textSecondary, marginTop: 4 },
-  stats: { ...typography.caption, marginTop: spacing.sm, marginBottom: spacing.md },
   section: { marginTop: spacing.lg },
   sectionTitle: { ...typography.subtitle, marginBottom: spacing.sm },
-  listRow: {
+  navTile: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: spacing.sm,
-    gap: spacing.sm,
-  },
-  rowIcon: { fontSize: 24 },
-  rowBody: { flex: 1 },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  chip: {
-    backgroundColor: colors.primaryMuted,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  categoryTile: {
-    width: "47%",
     backgroundColor: colors.card,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
+    gap: spacing.sm,
   },
+  navEmoji: { fontSize: 28 },
+  navBody: { flex: 1, gap: 4 },
   resultCard: { marginBottom: spacing.sm, gap: 4 },
 });
