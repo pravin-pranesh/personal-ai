@@ -110,3 +110,31 @@ export type DailyTodo = {
 export type DailyTodosPayload = {
   items: DailyTodo[];
 };
+
+export type ResearchNewsCard = {
+  title: string;
+  snippet: string;
+  source: string;
+  publishedAt?: string;
+};
+
+export type ResearchSession = {
+  id: string;
+  prompt: string;
+  slug: string;
+  fileName: string;
+  createdAt: string;
+  summary: string;
+  cards: ResearchNewsCard[];
+};
+
+export type ResearchListPayload = {
+  sessions: ResearchSession[];
+};
+
+export type ResearchCreateResponse = ResearchSession;
+
+export type ClearLocalDataResponse = {
+  ok: boolean;
+  cleared: ("todos" | "research")[];
+};

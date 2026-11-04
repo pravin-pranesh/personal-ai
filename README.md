@@ -6,6 +6,8 @@ Mobile-first app store for AI research tasks — discover, install, and configur
 
 - Home dashboard with a talking animated assistant (Lottie body + heuristic lip-sync mouth shapes; **web** uses the Web Speech API, native uses `expo-speech` — syllable/word timing, not phoneme-perfect)
 - **Today** tab — daily todos stored in `server/data/daily/todos.json` via `GET/POST/PATCH/DELETE /api/daily/todos`
+- **Research** tab — Grok-style chat: type any topic, get a summary plus headline cards; sessions saved as markdown under `server/data/daily/research/` with `index.json` via `GET/POST /api/daily/research` (sample cards until RSS in MA-6)
+- **Settings → Delete local data** — `POST /api/daily/reset` clears daily todos and research files only (SQLite task catalog is kept)
 
 ## Monorepo
 
@@ -40,6 +42,8 @@ npm run mobile:web
 ```
 
 Open the **Today** tab to add, complete, and delete todos. Data persists in `server/data/daily/todos.json` on the machine running the API.
+
+Open the **Research** tab, ask about any news topic, and confirm assistant bubbles plus cards appear; on the laptop, check `server/data/daily/research/*.md` and `index.json` after each prompt.
 
 For phone testing on LAN, use `LOCAL-RUN.ps1`.
 

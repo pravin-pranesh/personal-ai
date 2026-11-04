@@ -3,6 +3,9 @@ import type {
   DailyTodosPayload,
   DashboardPayload,
   InstalledPayload,
+  ClearLocalDataResponse,
+  ResearchCreateResponse,
+  ResearchListPayload,
   TaskDefinitionSummary,
   TaskDetail,
 } from "@personal-ai/shared";
@@ -109,4 +112,19 @@ export function deleteDailyTodo(id: string): Promise<{ ok: boolean }> {
   return request(`/api/daily/todos/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
+}
+
+export function fetchResearchSessions(): Promise<ResearchListPayload> {
+  return request("/api/daily/research");
+}
+
+export function createResearchSession(prompt: string): Promise<ResearchCreateResponse> {
+  return request("/api/daily/research", {
+    method: "POST",
+    body: JSON.stringify({ prompt }),
+  });
+}
+
+export function clearLocalDailyData(): Promise<ClearLocalDataResponse> {
+  return request("/api/daily/reset", { method: "POST" });
 }

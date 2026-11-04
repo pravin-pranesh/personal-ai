@@ -80,3 +80,7 @@ export function deleteDailyTodo(id: string): boolean {
   saveStore({ items: next });
   return true;
 }
+
+export function clearDailyTodos(): void {
+  saveStore({ items: [] });
+}

@@ -1,6 +1,8 @@
 import cors from "cors";
 import express from "express";
 import { getDb } from "./db/database.js";
+import { dailyResearchRouter } from "./routes/dailyResearch.js";
+import { dailyResetRouter } from "./routes/dailyReset.js";
 import { dailyTodosRouter } from "./routes/dailyTodos.js";
 import { tasksRouter } from "./routes/tasks.js";
 
@@ -14,6 +16,8 @@ app.use(cors());
 app.use(express.json());
 app.use(tasksRouter);
 app.use(dailyTodosRouter);
+app.use(dailyResearchRouter);
+app.use(dailyResetRouter);
 
 app.listen(PORT, HOST, () => {
   console.log(`Personal AI API listening on http://${HOST}:${PORT}`);

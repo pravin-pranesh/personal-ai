@@ -16,6 +16,7 @@ import {
   fetchDailyTodos,
   updateDailyTodo,
 } from "../../src/api/client";
+import { subscribeDailyDataCleared } from "../../src/lib/dailyDataRefresh";
 import { OfflineBanner } from "../../src/components/ui/OfflineBanner";
 import { Card } from "../../src/components/ui/Card";
 import { PrimaryButton } from "../../src/components/ui/PrimaryButton";
@@ -45,6 +46,8 @@ export default function TodayScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => subscribeDailyDataCleared(() => void load()), [load]);
 
   const onAdd = async () => {
     const title = draft.trim();
