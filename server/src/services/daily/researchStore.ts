@@ -21,10 +21,14 @@ const DAILY_DIR = path.join(__dirname, "..", "..", "..", "data", "daily");
 const RESEARCH_DIR = path.join(DAILY_DIR, "research");
 const INDEX_PATH = path.join(RESEARCH_DIR, "index.json");
 
+/** Sessions older than this (by `createdAt`) are removed on list and at startup. */
+export const RESEARCH_RETENTION_DAYS = 7;
+
 type ResearchIndex = {
   sessions: ResearchSessionSummary[];
 };
 
+<<<<<<< HEAD
 export type ResearchContentInput = {
   summary: string;
   cards: ResearchNewsCard[];
@@ -103,6 +107,9 @@ function toSummary(session: ResearchSession): ResearchSessionSummary {
     updatedAt: session.updatedAt,
   };
 }
+=======
+let pruneLoggedThisProcess = false;
+>>>>>>> a927a5dee6fa72b384b7732db0a01595ccb5b969
 
 function ensureResearchDir(): void {
   fs.mkdirSync(RESEARCH_DIR, { recursive: true });
@@ -287,9 +294,13 @@ function buildMarkdown(session: ResearchSession): string {
     "",
     session.summary,
     "",
-    "## Headlines",
-    "",
   ];
+
+  if (session.briefingMarkdown?.trim()) {
+    lines.push("## Briefing", "", session.briefingMarkdown.trim(), "");
+  }
+
+  lines.push("## Headlines", "");
 
   for (const card of session.cards) {
     lines.push(`### ${card.title}`, "");
@@ -314,7 +325,64 @@ function writeMarkdownAtomic(fileName: string, content: string): void {
   fs.renameSync(tmp, filePath);
 }
 
+<<<<<<< HEAD
 export function listResearchSessions(): ResearchSessionSummary[] {
+=======
+function retentionCutoffMs(): number {
+  return Date.now() - RESEARCH_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+}
+
+/**
+ * Drop index entries and markdown files with `createdAt` before the retention window.
+ * Cutoff uses UTC milliseconds (ISO `createdAt` timestamps).
+ */
+export function pruneOldResearchSessions(options?: { log?: boolean }): number {
+  const cutoff = retentionCutoffMs();
+  const index = readIndex();
+  const keep: ResearchSession[] = [];
+  const remove: ResearchSession[] = [];
+
+  for (const session of index.sessions) {
+    const created = new Date(session.createdAt).getTime();
+    if (Number.isNaN(created) || created < cutoff) {
+      remove.push(session);
+    } else {
+      keep.push(session);
+    }
+  }
+
+  if (remove.length === 0) {
+    return 0;
+  }
+
+  for (const session of remove) {
+    const filePath = path.join(RESEARCH_DIR, session.fileName);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  }
+
+  saveIndex({ sessions: keep });
+
+  if (options?.log && !pruneLoggedThisProcess) {
+    console.log(
+      `[research] pruned ${remove.length} session(s) older than ${RESEARCH_RETENTION_DAYS} days (UTC cutoff)`,
+    );
+    pruneLoggedThisProcess = true;
+  }
+
+  return remove.length;
+}
+
+export function getResearchSessionById(id: string): ResearchSession | null {
+  pruneOldResearchSessions();
+  const index = readIndex();
+  return index.sessions.find((s) => s.id === id) ?? null;
+}
+
+export function listResearchSessions(): ResearchSession[] {
+  pruneOldResearchSessions();
+>>>>>>> a927a5dee6fa72b384b7732db0a01595ccb5b969
   const index = readIndex();
   return [...index.sessions].sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
@@ -331,6 +399,7 @@ export function getResearchSession(id: string): ResearchSession | null {
 function appendTurnMessages(
   sessionId: string,
   prompt: string,
+<<<<<<< HEAD
   at: string,
   content: ResearchContentInput,
 ): ResearchThreadMessage[] {
@@ -358,6 +427,10 @@ export async function createResearchSession(
   content?: ResearchContentInput,
   threadId?: string,
 ): Promise<ResearchSession> {
+=======
+  content?: { summary: string; cards: ResearchNewsCard[]; briefingMarkdown?: string },
+): ResearchSession {
+>>>>>>> a927a5dee6fa72b384b7732db0a01595ccb5b969
   const trimmed = prompt.trim();
   if (!trimmed) {
     throw new Error("Prompt is required");
@@ -404,12 +477,21 @@ export async function createResearchSession(
     prompt: trimmed,
     slug,
     fileName,
+<<<<<<< HEAD
     createdAt: now,
     updatedAt: now,
     summary: resolved.summary,
     cards: resolved.cards,
     sourcesUsed: resolved.sourcesUsed,
     messages: turn,
+=======
+    createdAt,
+    summary,
+    cards,
+    ...(content?.briefingMarkdown?.trim()
+      ? { briefingMarkdown: content.briefingMarkdown.trim() }
+      : {}),
+>>>>>>> a927a5dee6fa72b384b7732db0a01595ccb5b969
   };
 
   writeMarkdownAtomic(fileName, buildMarkdown(session));
@@ -420,6 +502,21 @@ export async function createResearchSession(
   saveIndex(index);
 
   return session;
+}
+
+export function deleteResearchSession(id: string): boolean {
+  pruneOldResearchSessions();
+  const index = readIndex();
+  const session = index.sessions.find((s) => s.id === id);
+  if (!session) return false;
+
+  const filePath = path.join(RESEARCH_DIR, session.fileName);
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
+
+  saveIndex({ sessions: index.sessions.filter((s) => s.id !== id) });
+  return true;
 }
 
 export function clearResearchData(): void {

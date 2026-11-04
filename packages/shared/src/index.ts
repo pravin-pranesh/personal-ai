@@ -105,6 +105,12 @@ export type DailyTodo = {
   title: string;
   done: boolean;
   createdAt: string;
+  /** Local due time HH:MM (24h) */
+  dueTime?: string;
+  /** Local due date YYYY-MM-DD; defaults to created day when dueTime set */
+  dueDate?: string;
+  /** Set when a due nudge was delivered (app/server poll) */
+  dueNotified?: boolean;
 };
 
 export type DailyTodosPayload = {
@@ -142,6 +148,8 @@ export type ResearchSession = {
   createdAt: string;
   updatedAt: string;
   summary: string;
+  /** Gemini-style markdown briefing (headings, bullets) when available */
+  briefingMarkdown?: string;
   cards: ResearchNewsCard[];
   messages: ResearchThreadMessage[];
   sourcesUsed?: ResearchSource[];
@@ -160,23 +168,180 @@ export type ResearchCreateResponse = ResearchSession;
 
 export type ClearLocalDataResponse = {
   ok: boolean;
-  cleared: ("todos" | "research")[];
+  cleared: ("todos" | "research" | "dailyTasks" | "reminders")[];
+};
+
+export type ResearchProvider = "auto" | "gemini" | "kimi" | "free";
+
+export type ReminderKind = "reminder" | "alarm";
+
+export type StoredReminder = {
+  id: string;
+  title: string;
+  kind: ReminderKind;
+  /** ISO instant when notification should fire */
+  fireAt: string;
+  createdAt: string;
+  notified?: boolean;
+};
+
+export type RemindersPayload = {
+  items: StoredReminder[];
+};
+
+export type ResearchRagHit = {
+  sessionId: string;
+  prompt: string;
+  fileName: string;
+  snippet: string;
+  score: number;
+};
+
+export type ResearchRagPayload = {
+  query: string;
+  hits: ResearchRagHit[];
+  mode: "semantic" | "keyword";
+};
+
+export type ResearchRetentionDays = 0 | 1 | 7 | 30;
+
+export type RagMode = "auto" | "semantic" | "keyword";
+
+export type EngineTaskType =
+  | "research"
+  | "reminder"
+  | "todo"
+  | "open_url"
+  | "scheduled_daily"
+  | "mcp_call";
+
+export type EngineTaskStatus = "pending" | "running" | "done" | "error";
+
+export type EngineTask = {
+  id: string;
+  type: EngineTaskType;
+  status: EngineTaskStatus;
+  payload: Record<string, unknown>;
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  error?: string;
+  result?: Record<string, unknown>;
+};
+
+export type EngineStatusPayload = {
+  pending: number;
+  running: number;
+  done: number;
+  error: number;
+  tasks: EngineTask[];
+};
+
+export type McpServerConfig = {
+  id: string;
+  name: string;
+  url: string;
+  /** Optional path appended for tool calls, e.g. /mcp or /tools/run */
+  toolPath?: string;
+};
+
+export type McpScheduleConfig = {
+  enabled: boolean;
+  mode: "interval" | "daily";
+  intervalMinutes?: number;
+  runTimeLocal?: string;
+  serverId?: string;
+  toolName?: string;
+  arguments?: Record<string, unknown>;
+};
+
+export type McpRunRecord = {
+  id: string;
+  serverId: string;
+  toolName: string;
+  startedAt: string;
+  completedAt?: string;
+  ok: boolean;
+  responsePreview?: string;
+  error?: string;
+};
+
+export type DailyTaskTopic = {
+  id: string;
+  topic: string;
+  createdAt: string;
+};
+
+export type DailyTaskSchedule = {
+  /** Local wall-clock time in 24h form, e.g. "08:30" */
+  runTimeLocal: string;
+  /** IANA timezone from the device, e.g. "America/Los_Angeles" */
+  timezone: string;
+};
+
+export type DailyTaskRunStatus = "pending" | "running" | "done" | "error";
+
+export type DailyTaskRun = {
+  id: string;
+  topicId: string;
+  topic: string;
+  /** Calendar date in the schedule timezone, YYYY-MM-DD */
+  localDate: string;
+  status: DailyTaskRunStatus;
+  researchSessionId?: string;
+  error?: string;
+  startedAt?: string;
+  completedAt?: string;
+};
+
+export type DailyTasksPayload = {
+  topics: DailyTaskTopic[];
+  schedule: DailyTaskSchedule;
+  todayRuns: DailyTaskRun[];
+  /** Present when status is done and session still exists */
+  results?: Record<
+    string,
+    Pick<ResearchSession, "summary" | "cards" | "prompt" | "createdAt" | "briefingMarkdown">
+  >;
 };
 
 export type SettingsPublic = {
   geminiConfigured: boolean;
   geminiModel?: string;
   geminiKeyPreview?: string;
+<<<<<<< HEAD
   geminiDevStub?: boolean;
   kimiConfigured: boolean;
   kimiModel?: string;
   kimiKeyPreview?: string;
   researchProvider?: ResearchProvider;
+=======
+  kimiConfigured: boolean;
+  kimiKeyPreview?: string;
+  kimiModel?: string;
+  ollamaUrl: string;
+  ollamaReachable: boolean;
+  demoMode: boolean;
+  researchProvider: ResearchProvider;
+  mcpEnabled: boolean;
+  mcpServers: McpServerConfig[];
+  mcpSchedule: McpScheduleConfig;
+  researchRetentionDays: ResearchRetentionDays;
+  ragMode: RagMode;
+  ragActiveMode: "semantic" | "keyword";
+  /** Android system overlay + foreground service (Play build) */
+  overlayAssistantEnabled: boolean;
+  /** Wake phrase name, e.g. "Mira" */
+  assistantName: string;
+  /** Prefer 3D GL avatar in overlay bubble (fallback 2D Lottie on low-end) */
+  overlayUse3dAvatar: boolean;
+>>>>>>> a927a5dee6fa72b384b7732db0a01595ccb5b969
 };
 
 export type SettingsUpdateBody = {
   geminiApiKey?: string;
   geminiModel?: string;
+<<<<<<< HEAD
   geminiDevStub?: boolean;
   kimiApiKey?: string;
   kimiModel?: string;
@@ -192,4 +357,19 @@ export type GeminiTestResponse = {
 export type KimiTestResponse = {
   ok: boolean;
   error?: string;
+=======
+  kimiApiKey?: string;
+  kimiModel?: string;
+  ollamaUrl?: string;
+  demoMode?: boolean;
+  researchProvider?: ResearchProvider;
+  mcpEnabled?: boolean;
+  mcpServers?: McpServerConfig[];
+  mcpSchedule?: Partial<McpScheduleConfig>;
+  researchRetentionDays?: ResearchRetentionDays;
+  ragMode?: RagMode;
+  overlayAssistantEnabled?: boolean;
+  assistantName?: string;
+  overlayUse3dAvatar?: boolean;
+>>>>>>> a927a5dee6fa72b384b7732db0a01595ccb5b969
 };

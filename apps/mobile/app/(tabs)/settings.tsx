@@ -5,20 +5,41 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
 } from "react-native";
+<<<<<<< HEAD
 import type { ResearchProvider } from "@personal-ai/shared";
+=======
+import type {
+  EngineStatusPayload,
+  RagMode,
+  ResearchProvider,
+  ResearchRetentionDays,
+} from "@personal-ai/shared";
+>>>>>>> a927a5dee6fa72b384b7732db0a01595ccb5b969
 import {
   ApiRequestError,
+  clearAllResearchHistory,
   clearLocalDailyData,
+  exportAllResearchLocal,
+  fetchEngineStatus,
   fetchSettings,
+  runEngineNow,
   testGeminiSettings,
+<<<<<<< HEAD
   testKimiSettings,
+=======
+  testOllamaSettings,
+>>>>>>> a927a5dee6fa72b384b7732db0a01595ccb5b969
   updateSettings,
 } from "../../src/api/client";
-import { getApiBaseUrl } from "../../src/config/api";
+import { getApiBaseUrl, isPhoneLocalMode } from "../../src/config/api";
+import { isOverlayNativeModuleAvailable } from "../../modules/overlay-assistant";
+import { openOverlayPermissionSettings } from "../../src/overlay/overlayController";
+import { useOverlayAssistant } from "../../src/overlay/OverlayAssistantProvider";
 import { Card } from "../../src/components/ui/Card";
 import { PrimaryButton } from "../../src/components/ui/PrimaryButton";
 import { notifyDailyDataCleared } from "../../src/lib/dailyDataRefresh";
@@ -48,6 +69,7 @@ function formatApiError(err: unknown, fallback: string): string {
 }
 
 export default function SettingsScreen() {
+  const { refreshOverlayFromSettings, runtimeMode } = useOverlayAssistant();
   const [clearing, setClearing] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [geminiConfigured, setGeminiConfigured] = useState(false);
@@ -57,6 +79,7 @@ export default function SettingsScreen() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
+<<<<<<< HEAD
   const [geminiDevStub, setGeminiDevStub] = useState(false);
   const [showOfflineDemo, setShowOfflineDemo] = useState(false);
   const [kimiConfigured, setKimiConfigured] = useState(false);
@@ -67,11 +90,41 @@ export default function SettingsScreen() {
   const [kimiSaving, setKimiSaving] = useState(false);
   const [researchProvider, setResearchProvider] = useState<ResearchProvider>("auto");
   const [providerSaving, setProviderSaving] = useState(false);
+=======
+  const [kimiConfigured, setKimiConfigured] = useState(false);
+  const [kimiPreview, setKimiPreview] = useState<string>();
+  const [kimiModel, setKimiModel] = useState("moonshot-v1-8k");
+  const [kimiKeyDraft, setKimiKeyDraft] = useState("");
+  const [ollamaUrl, setOllamaUrl] = useState("http://127.0.0.1:11434");
+  const [ollamaReachable, setOllamaReachable] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
+  const [researchProvider, setResearchProvider] = useState<ResearchProvider>("auto");
+  const [testingOllama, setTestingOllama] = useState(false);
+  const [clearingHistory, setClearingHistory] = useState(false);
+  const [engineStatus, setEngineStatus] = useState<EngineStatusPayload | null>(null);
+  const [engineRunning, setEngineRunning] = useState(false);
+  const [mcpEnabled, setMcpEnabled] = useState(false);
+  const [mcpServerName, setMcpServerName] = useState("My MCP");
+  const [mcpServerUrl, setMcpServerUrl] = useState("");
+  const [mcpToolName, setMcpToolName] = useState("default");
+  const [mcpScheduleEnabled, setMcpScheduleEnabled] = useState(false);
+  const [mcpScheduleMode, setMcpScheduleMode] = useState<"interval" | "daily">("daily");
+  const [mcpIntervalMinutes, setMcpIntervalMinutes] = useState("60");
+  const [mcpRunTimeLocal, setMcpRunTimeLocal] = useState("09:00");
+  const [researchRetentionDays, setResearchRetentionDays] = useState<ResearchRetentionDays>(30);
+  const [ragMode, setRagMode] = useState<RagMode>("auto");
+  const [ragActiveMode, setRagActiveMode] = useState<"semantic" | "keyword">("keyword");
+  const [exportingResearch, setExportingResearch] = useState(false);
+  const [overlayAssistantEnabled, setOverlayAssistantEnabled] = useState(false);
+  const [assistantName, setAssistantName] = useState("Assistant");
+  const [overlayUse3dAvatar, setOverlayUse3dAvatar] = useState(true);
+>>>>>>> a927a5dee6fa72b384b7732db0a01595ccb5b969
 
   const applySettings = useCallback((data: Awaited<ReturnType<typeof fetchSettings>>) => {
     setGeminiConfigured(data.geminiConfigured);
     setKeyPreview(data.geminiKeyPreview);
     setModel(data.geminiModel?.trim() || DEFAULT_GEMINI_MODEL);
+<<<<<<< HEAD
     setGeminiDevStub(data.geminiDevStub === true);
     setKimiConfigured(data.kimiConfigured);
     setKimiKeyPreview(data.kimiKeyPreview);
@@ -79,6 +132,38 @@ export default function SettingsScreen() {
     setResearchProvider(data.researchProvider ?? "auto");
     if (data.geminiDevStub) {
       setShowOfflineDemo(false);
+=======
+    setKimiConfigured(data.kimiConfigured);
+    setKimiPreview(data.kimiKeyPreview);
+    setKimiModel(data.kimiModel?.trim() || "moonshot-v1-8k");
+    setOllamaUrl(data.ollamaUrl);
+    setOllamaReachable(data.ollamaReachable);
+    setDemoMode(data.demoMode);
+    setResearchProvider(data.researchProvider);
+    setMcpEnabled(data.mcpEnabled);
+    const primary = data.mcpServers[0];
+    setMcpServerName(primary?.name ?? "My MCP");
+    setMcpServerUrl(primary?.url ?? "");
+    setMcpToolName(data.mcpSchedule.toolName ?? "default");
+    setMcpScheduleEnabled(data.mcpSchedule.enabled);
+    setMcpScheduleMode(data.mcpSchedule.mode);
+    setMcpIntervalMinutes(String(data.mcpSchedule.intervalMinutes ?? 60));
+    setMcpRunTimeLocal(data.mcpSchedule.runTimeLocal ?? "09:00");
+    setResearchRetentionDays(data.researchRetentionDays);
+    setRagMode(data.ragMode);
+    setRagActiveMode(data.ragActiveMode);
+    setOverlayAssistantEnabled(data.overlayAssistantEnabled);
+    setAssistantName(data.assistantName?.trim() || "Assistant");
+    setOverlayUse3dAvatar(data.overlayUse3dAvatar !== false);
+  }, []);
+
+  const refreshEngineStatus = useCallback(async () => {
+    try {
+      const status = await fetchEngineStatus();
+      setEngineStatus(status);
+    } catch {
+      setEngineStatus(null);
+>>>>>>> a927a5dee6fa72b384b7732db0a01595ccb5b969
     }
   }, []);
 
@@ -88,6 +173,7 @@ export default function SettingsScreen() {
     try {
       const data = await fetchSettings();
       applySettings(data);
+      await refreshEngineStatus();
     } catch (err) {
       setGeminiConfigured(false);
       setKeyPreview(undefined);
@@ -95,7 +181,7 @@ export default function SettingsScreen() {
     } finally {
       setSettingsLoading(false);
     }
-  }, [applySettings]);
+  }, [applySettings, refreshEngineStatus]);
 
   useEffect(() => {
     void loadSettings();
@@ -154,6 +240,7 @@ export default function SettingsScreen() {
     }
   };
 
+<<<<<<< HEAD
   const onEnableOfflineDemo = async () => {
     if (saving || testing) return;
     setSaving(true);
@@ -171,11 +258,48 @@ export default function SettingsScreen() {
       const message = formatApiError(err, "Could not enable demo mode on the server.");
       setSettingsError(message);
       Alert.alert("Could not enable demo mode", message);
+=======
+  const onSaveResearchPrefs = async () => {
+    setSaving(true);
+    try {
+      await updateSettings({
+        demoMode,
+        researchProvider,
+        ollamaUrl: ollamaUrl.trim(),
+        kimiApiKey: kimiKeyDraft.trim() || undefined,
+        kimiModel: kimiModel.trim(),
+        researchRetentionDays,
+        ragMode,
+      });
+      setKimiKeyDraft("");
+      const data = await fetchSettings();
+      applySettings(data);
+      Alert.alert("Saved", "Research preferences updated.");
+    } catch (err) {
+      Alert.alert("Save failed", formatApiError(err, "Try again."));
+>>>>>>> a927a5dee6fa72b384b7732db0a01595ccb5b969
     } finally {
       setSaving(false);
     }
   };
 
+<<<<<<< HEAD
+=======
+  const onTestOllama = async () => {
+    setTestingOllama(true);
+    try {
+      await testOllamaSettings();
+      const data = await fetchSettings();
+      applySettings(data);
+      Alert.alert("Ollama", "Reachable at configured URL.");
+    } catch (err) {
+      Alert.alert("Ollama offline", formatApiError(err, "Start Ollama on your laptop."));
+    } finally {
+      setTestingOllama(false);
+    }
+  };
+
+>>>>>>> a927a5dee6fa72b384b7732db0a01595ccb5b969
   const onRemoveGeminiKey = () => {
     Alert.alert("Remove Gemini API key?", "Research will use sample cards until a key is set again.", [
       { text: "Cancel", style: "cancel" },
@@ -207,7 +331,10 @@ export default function SettingsScreen() {
     void clearLocalDailyData()
       .then(() => {
         notifyDailyDataCleared();
-        Alert.alert("Local data deleted", "Todos and research notes were cleared on this server.");
+        Alert.alert(
+          "Local data deleted",
+          "Todos, research, daily tasks, and reminders were cleared on this server.",
+        );
       })
       .catch(() => {
         Alert.alert("Could not delete data", "Check that the server is running and try again.");
@@ -218,7 +345,7 @@ export default function SettingsScreen() {
   const onDeleteLocalData = () => {
     Alert.alert(
       "Delete local data?",
-      "This removes todos and research notes on this server. Task catalog DB is kept.",
+      "This removes todos, research, daily schedule, and reminders on this server.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -235,9 +362,175 @@ export default function SettingsScreen() {
     );
   };
 
+  const onSaveMcp = async () => {
+    const url = mcpServerUrl.trim();
+    if (mcpEnabled && !url) {
+      Alert.alert("MCP URL required", "Add a server URL or turn MCP off.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const interval = Math.max(5, parseInt(mcpIntervalMinutes, 10) || 60);
+      await updateSettings({
+        mcpEnabled,
+        mcpServers: url
+          ? [{ id: "primary", name: mcpServerName.trim() || "MCP", url }]
+          : [],
+        mcpSchedule: {
+          enabled: mcpScheduleEnabled && mcpEnabled,
+          mode: mcpScheduleMode,
+          intervalMinutes: interval,
+          runTimeLocal: mcpRunTimeLocal.trim() || "09:00",
+          serverId: url ? "primary" : undefined,
+          toolName: mcpToolName.trim() || "default",
+          arguments: {},
+        },
+      });
+      const data = await fetchSettings();
+      applySettings(data);
+      Alert.alert("Saved", "MCP scheduling updated on this device.");
+    } catch (err) {
+      Alert.alert("Save failed", formatApiError(err, "Try again."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onRunEngine = async () => {
+    if (engineRunning) return;
+    setEngineRunning(true);
+    try {
+      await runEngineNow();
+      await refreshEngineStatus();
+      Alert.alert("Engine", "Processed pending tasks.");
+    } catch (err) {
+      Alert.alert("Engine failed", formatApiError(err, "Try again."));
+    } finally {
+      setEngineRunning(false);
+    }
+  };
+
+  const onExportAllResearch = async () => {
+    if (!isPhoneLocalMode()) {
+      Alert.alert("Phone only", "Export runs in phone-local mode (no laptop server URL).");
+      return;
+    }
+    setExportingResearch(true);
+    try {
+      await exportAllResearchLocal();
+    } catch (err) {
+      Alert.alert("Export failed", err instanceof Error ? err.message : "Try again.");
+    } finally {
+      setExportingResearch(false);
+    }
+  };
+
+  const onClearResearchHistory = () => {
+    Alert.alert("Clear research history?", "Deletes all saved briefings (markdown + index).", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Clear",
+        style: "destructive",
+        onPress: () => {
+          setClearingHistory(true);
+          void clearAllResearchHistory()
+            .then(() => {
+              notifyDailyDataCleared();
+              Alert.alert("Cleared", "Research history removed from this server.");
+            })
+            .catch(() => Alert.alert("Failed", "Check server connection."))
+            .finally(() => setClearingHistory(false));
+        },
+      },
+    ]);
+  };
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={typography.subtitle}>Preferences</Text>
+      <Text style={typography.caption}>
+        {isPhoneLocalMode()
+          ? "All data stays on this phone (document storage + SecureStore for API keys)."
+          : `Dev mode: syncing to laptop server at ${getApiBaseUrl() ?? ""}.`}
+      </Text>
+
+      <Text style={styles.sectionLabel}>On-screen assistant (MA-38–40)</Text>
+      <Card style={styles.aiCard}>
+        <View style={styles.switchRow}>
+          <Text style={typography.body}>Show assistant on screen</Text>
+          <Switch
+            value={overlayAssistantEnabled}
+            onValueChange={(v) => setOverlayAssistantEnabled(v)}
+          />
+        </View>
+        <Text style={typography.caption}>
+          {isOverlayNativeModuleAvailable()
+            ? `Native overlay: ${runtimeMode}. Requires display-over-other-apps permission.`
+            : "Expo Go / web: in-app draggable bubble only. Use EAS Android build for system overlay."}
+        </Text>
+        <Text style={typography.caption}>
+          Battery: foreground overlay + mic use extra power. Disable when not needed. Some OEMs
+          may stop the service unless battery optimization is off for this app.
+        </Text>
+        <Text style={styles.fieldLabel}>Assistant name (wake phrase)</Text>
+        <TextInput
+          style={styles.input}
+          value={assistantName}
+          onChangeText={setAssistantName}
+          placeholder="Assistant"
+        />
+        <View style={styles.switchRow}>
+          <Text style={typography.body}>3D avatar in bubble</Text>
+          <Switch value={overlayUse3dAvatar} onValueChange={setOverlayUse3dAvatar} />
+        </View>
+        <View style={styles.aiActions}>
+          <PrimaryButton
+            label={saving ? "…" : "Save overlay"}
+            onPress={() =>
+              void (async () => {
+                setSaving(true);
+                try {
+                  await updateSettings({
+                    overlayAssistantEnabled,
+                    assistantName: assistantName.trim() || "Assistant",
+                    overlayUse3dAvatar,
+                  });
+                  await refreshOverlayFromSettings();
+                  const data = await fetchSettings();
+                  applySettings(data);
+                  Alert.alert("Saved", "Overlay assistant updated.");
+                } catch (err) {
+                  Alert.alert("Save failed", formatApiError(err, "Try again."));
+                } finally {
+                  setSaving(false);
+                }
+              })()
+            }
+            disabled={saving}
+          />
+          {isOverlayNativeModuleAvailable() ? (
+            <PrimaryButton
+              label="Overlay permission"
+              variant="secondary"
+              onPress={() =>
+                void openOverlayPermissionSettings().catch((err) =>
+                  Alert.alert("Settings", err instanceof Error ? err.message : "Unavailable"),
+                )
+              }
+            />
+          ) : null}
+        </View>
+      </Card>
+
+      <Text style={styles.sectionLabel}>Phone notifications</Text>
+      <Card style={styles.aiCard}>
+        <Text style={typography.body}>Reminders use phone notifications</Text>
+        <Text style={typography.caption}>
+          Works in background when Android allows (Expo Go has limits; dev builds are better).
+          Scheduled research runs when the server is up and the app can reach it — not true 24×7
+          while the app is killed.
+        </Text>
+      </Card>
 
       <Text style={styles.sectionLabel}>AI connection</Text>
       <Card style={styles.aiCard}>
@@ -275,6 +568,7 @@ export default function SettingsScreen() {
               <Text style={styles.saveHint}>Tap Save to connect this key to the server.</Text>
             ) : null}
             <Text style={typography.caption}>
+<<<<<<< HEAD
               Paste an API key from Google AI Studio (AIza… or AQ.…). Keys stay on your server (
               {getApiBaseUrl()}) — never in the mobile bundle.
             </Text>
@@ -287,6 +581,10 @@ export default function SettingsScreen() {
               If Test connection fails, create a new Gemini API key in AI Studio (Get API key →
               Gemini API). Revoked or non-API credentials are rejected — the server sends the key as
               x-goog-api-key, not OAuth Bearer.
+=======
+              Paste an API key from Google AI Studio. Keys stay on{" "}
+              {isPhoneLocalMode() ? "this phone (SecureStore)" : `your server (${getApiBaseUrl()})`}.
+>>>>>>> a927a5dee6fa72b384b7732db0a01595ccb5b969
             </Text>
             <TextInput
               style={styles.input}
@@ -349,12 +647,258 @@ export default function SettingsScreen() {
         )}
       </Card>
 
-      <Text style={styles.sectionLabel}>Data on this server</Text>
+      <Text style={styles.sectionLabel}>Kimi (Moonshot)</Text>
+      <Card style={styles.aiCard}>
+        <View style={styles.statusRow}>
+          <Text style={typography.body}>Kimi API</Text>
+          <Text style={[styles.statusBadge, kimiConfigured ? styles.statusConnected : styles.statusOff]}>
+            {kimiConfigured ? "Connected" : "Not connected"}
+          </Text>
+        </View>
+        {kimiPreview ? <Text style={typography.caption}>Key: {kimiPreview}</Text> : null}
+        <TextInput
+          style={styles.input}
+          placeholder="Moonshot API key"
+          placeholderTextColor={colors.textSecondary}
+          value={kimiKeyDraft}
+          onChangeText={setKimiKeyDraft}
+          secureTextEntry
+          autoCapitalize="none"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="moonshot-v1-8k"
+          value={kimiModel}
+          onChangeText={setKimiModel}
+          autoCapitalize="none"
+        />
+      </Card>
+
+      <Text style={styles.sectionLabel}>Research sources</Text>
+      <Card style={styles.aiCard}>
+        <View style={styles.switchRow}>
+          <Text style={typography.body}>Offline demo mode</Text>
+          <Switch value={demoMode} onValueChange={setDemoMode} />
+        </View>
+        <Text style={typography.caption}>
+          When on, Research uses template cards only (no Wikipedia/RSS/cloud).
+        </Text>
+        <Text style={styles.fieldLabel}>Provider priority</Text>
+        <View style={styles.providerRow}>
+          {(["auto", "gemini", "kimi", "free"] as ResearchProvider[]).map((p) => (
+            <Pressable
+              key={p}
+              style={[styles.chip, researchProvider === p && styles.chipActive]}
+              onPress={() => setResearchProvider(p)}
+            >
+              <Text style={[styles.chipText, researchProvider === p && styles.chipTextActive]}>
+                {p}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        <Text style={styles.fieldLabel}>Ollama URL (RAG / health)</Text>
+        <TextInput
+          style={styles.input}
+          value={ollamaUrl}
+          onChangeText={setOllamaUrl}
+          autoCapitalize="none"
+        />
+        <Text style={typography.caption}>
+          Ollama: {ollamaReachable ? "reachable" : "not reachable"} — embeddings for semantic RAG when
+          reachable (`nomic-embed-text`).
+        </Text>
+        <Text style={styles.fieldLabel}>Research retention</Text>
+        <View style={styles.providerRow}>
+          {(
+            [
+              [0, "Forever"],
+              [30, "30 days"],
+              [7, "7 days"],
+              [1, "1 day"],
+            ] as const
+          ).map(([days, label]) => (
+            <Pressable
+              key={days}
+              style={[
+                styles.chip,
+                researchRetentionDays === days && styles.chipActive,
+              ]}
+              onPress={() => setResearchRetentionDays(days)}
+            >
+              <Text
+                style={[
+                  styles.chipText,
+                  researchRetentionDays === days && styles.chipTextActive,
+                ]}
+              >
+                {label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        <Text style={styles.fieldLabel}>RAG search mode</Text>
+        <View style={styles.providerRow}>
+          {(["auto", "semantic", "keyword"] as const).map((m) => (
+            <Pressable
+              key={m}
+              style={[styles.chip, ragMode === m && styles.chipActive]}
+              onPress={() => setRagMode(m)}
+            >
+              <Text style={[styles.chipText, ragMode === m && styles.chipTextActive]}>{m}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <Text style={typography.caption}>
+          Active RAG: {ragActiveMode} (auto picks semantic when Ollama + embeddings exist).
+        </Text>
+        <View style={styles.aiActions}>
+          <PrimaryButton
+            label={saving ? "…" : "Save research prefs"}
+            onPress={() => void onSaveResearchPrefs()}
+            disabled={saving}
+          />
+          <PrimaryButton
+            label={testingOllama ? "…" : "Test Ollama"}
+            variant="secondary"
+            onPress={() => void onTestOllama()}
+            disabled={testingOllama}
+          />
+        </View>
+      </Card>
+
+      <Text style={styles.sectionLabel}>Task engine (MA-5)</Text>
+      <Card style={styles.aiCard}>
+        <Text style={typography.body}>
+          Queue:{" "}
+          {engineStatus
+            ? `${engineStatus.pending} pending · ${engineStatus.running} running · ${engineStatus.done} done · ${engineStatus.error} error`
+            : "—"}
+        </Text>
+        <Text style={typography.caption}>
+          Tasks persist in `daily/engine-queue.json`. PhoneBootstrap ticks the processor; use Run now
+          to drain pending work immediately.
+        </Text>
+        <PrimaryButton
+          label={engineRunning ? "…" : "Run engine now"}
+          variant="secondary"
+          onPress={() => void onRunEngine()}
+          disabled={engineRunning}
+        />
+      </Card>
+
+      <Text style={styles.sectionLabel}>MCP scheduling (MA-8)</Text>
+      <Card style={styles.aiCard}>
+        <View style={styles.switchRow}>
+          <Text style={typography.body}>Enable MCP</Text>
+          <Switch value={mcpEnabled} onValueChange={setMcpEnabled} />
+        </View>
+        {!mcpEnabled ? (
+          <Text style={typography.caption}>
+            Turn on to schedule HTTP MCP tool calls on this phone (results in `daily/mcp-runs.json`).
+          </Text>
+        ) : !mcpServerUrl.trim() ? (
+          <Text style={typography.caption}>
+            Add a server URL below — JSON-RPC POST to the endpoint with tool name and timeout.
+          </Text>
+        ) : (
+          <Text style={typography.caption}>Server: {mcpServerUrl.trim()}</Text>
+        )}
+        <Text style={styles.fieldLabel}>Server name</Text>
+        <TextInput style={styles.input} value={mcpServerName} onChangeText={setMcpServerName} />
+        <Text style={styles.fieldLabel}>Server URL</Text>
+        <TextInput
+          style={styles.input}
+          value={mcpServerUrl}
+          onChangeText={setMcpServerUrl}
+          placeholder="https://example.com/mcp"
+          autoCapitalize="none"
+        />
+        <Text style={styles.fieldLabel}>Tool name</Text>
+        <TextInput style={styles.input} value={mcpToolName} onChangeText={setMcpToolName} />
+        <View style={styles.switchRow}>
+          <Text style={typography.body}>Schedule MCP runs</Text>
+          <Switch value={mcpScheduleEnabled} onValueChange={setMcpScheduleEnabled} />
+        </View>
+        <View style={styles.providerRow}>
+          {(["daily", "interval"] as const).map((m) => (
+            <Pressable
+              key={m}
+              style={[styles.chip, mcpScheduleMode === m && styles.chipActive]}
+              onPress={() => setMcpScheduleMode(m)}
+            >
+              <Text
+                style={[styles.chipText, mcpScheduleMode === m && styles.chipTextActive]}
+              >
+                {m === "daily" ? "Daily time" : "Interval"}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        {mcpScheduleMode === "daily" ? (
+          <>
+            <Text style={styles.fieldLabel}>Run at (local HH:MM)</Text>
+            <TextInput
+              style={styles.input}
+              value={mcpRunTimeLocal}
+              onChangeText={setMcpRunTimeLocal}
+              placeholder="09:00"
+            />
+          </>
+        ) : (
+          <>
+            <Text style={styles.fieldLabel}>Every N minutes</Text>
+            <TextInput
+              style={styles.input}
+              value={mcpIntervalMinutes}
+              onChangeText={setMcpIntervalMinutes}
+              keyboardType="number-pad"
+            />
+          </>
+        )}
+        <PrimaryButton
+          label={saving ? "…" : "Save MCP"}
+          onPress={() => void onSaveMcp()}
+          disabled={saving}
+        />
+      </Card>
+
+      <Text style={styles.sectionLabel}>Data on this device</Text>
+      <Card style={styles.row}>
+        <View style={styles.rowText}>
+          <Text style={typography.body}>Clear research history</Text>
+          <Text style={typography.caption}>
+            Removes all saved briefings. Pruning otherwise follows your retention setting above.
+          </Text>
+        </View>
+        <Pressable
+          style={[styles.deleteBtn, clearingHistory && styles.deleteBtnDisabled]}
+          onPress={onClearResearchHistory}
+          disabled={clearingHistory}
+        >
+          <Text style={styles.deleteBtnText}>{clearingHistory ? "…" : "Clear"}</Text>
+        </Pressable>
+      </Card>
+      <Card style={styles.row}>
+        <View style={styles.rowText}>
+          <Text style={typography.body}>Export all research</Text>
+          <Text style={typography.caption}>
+            Share a combined markdown export (phone-local mode).
+          </Text>
+        </View>
+        <Pressable
+          style={[styles.deleteBtn, styles.exportBtn, exportingResearch && styles.deleteBtnDisabled]}
+          onPress={() => void onExportAllResearch()}
+          disabled={exportingResearch}
+        >
+          <Text style={styles.deleteBtnText}>{exportingResearch ? "…" : "Export"}</Text>
+        </Pressable>
+      </Card>
       <Card style={styles.row}>
         <View style={styles.rowText}>
           <Text style={typography.body}>Delete local data</Text>
           <Text style={typography.caption}>
-            Clears todos and research markdown. Installed tasks in SQLite are kept.
+            Clears todos, research, daily tasks, reminders, and engine queue on this device.
           </Text>
         </View>
         <Pressable
@@ -438,6 +982,23 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   removeKeyText: { color: colors.danger, fontWeight: "600", fontSize: 14 },
+  switchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  providerRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+  chip: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  chipActive: { borderColor: colors.primary, backgroundColor: colors.primaryMuted },
+  chipText: { fontSize: 13, fontWeight: "600", color: colors.textSecondary },
+  chipTextActive: { color: colors.primary },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -452,5 +1013,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.danger,
   },
   deleteBtnDisabled: { opacity: 0.6 },
+  exportBtn: { backgroundColor: colors.primary },
   deleteBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
 });

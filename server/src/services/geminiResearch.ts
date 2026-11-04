@@ -4,6 +4,7 @@ import { geminiComplete } from "./geminiClient.js";
 
 type GeminiResearchPayload = {
   summary: string;
+  briefingMarkdown?: string;
   cards: ResearchNewsCard[];
 };
 
@@ -12,7 +13,7 @@ function parsePayload(text: string): GeminiResearchPayload | null {
   const jsonBlock = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim();
   const candidate = jsonBlock ?? trimmed;
   try {
-    const parsed = JSON.parse(candidate) as GeminiResearchPayload;
+    const parsed = JSON.parse(candidate) as GeminiResearchPayload & { briefing?: string };
     if (
       !parsed ||
       typeof parsed.summary !== "string" ||
@@ -41,7 +42,17 @@ function parsePayload(text: string): GeminiResearchPayload | null {
     if (!parsed.summary.trim()) {
       return null;
     }
-    return { summary: parsed.summary.trim(), cards: cards.slice(0, 6) };
+    const briefingMarkdown =
+      typeof parsed.briefingMarkdown === "string"
+        ? parsed.briefingMarkdown.trim()
+        : typeof parsed.briefing === "string"
+          ? parsed.briefing.trim()
+          : undefined;
+    return {
+      summary: parsed.summary.trim(),
+      briefingMarkdown,
+      cards: cards.slice(0, 6),
+    };
   } catch {
     return null;
   }
@@ -52,6 +63,7 @@ export async function generateResearchWithGemini(
   config: GeminiConfig,
 ): Promise<GeminiResearchPayload | null> {
   const instruction = [
+<<<<<<< HEAD
     "You are a research assistant with access to current public knowledge (treat this like a grounded web search over news and reference sites).",
     "Return a detailed, fact-checked briefing for the user's topic. Prefer recent developments when the topic is newsy; cite realistic outlet names in cards.",
     "Respond with JSON only (no markdown outside the JSON object). Shape:",
@@ -63,6 +75,12 @@ export async function generateResearchWithGemini(
     "Under each section, use \"- \" bullets with concrete facts, angles, and caveats. Note uncertainty where appropriate.",
     "In ### Sources / context, mention which kinds of sources informed the briefing (e.g. major news wires, official announcements, encyclopedic background).",
     "Optional cards: 0–6 headline-style items with realistic outlet names and richer snippets (1–2 sentences each).",
+=======
+    "You are a research assistant. The user asked for a brief news-style briefing.",
+    "Respond with JSON only (no markdown prose outside the JSON). Shape:",
+    '{"summary":"2-4 sentences","briefingMarkdown":"markdown with ## and bullets","cards":[{"title":"...","snippet":"...","source":"outlet name","publishedAt":"ISO-8601 optional"}]}',
+    "Provide 3 headline-style cards with realistic outlet names. Note uncertainty where appropriate.",
+>>>>>>> a927a5dee6fa72b384b7732db0a01595ccb5b969
     `User topic: ${prompt.trim()}`,
   ].join("\n");
 
