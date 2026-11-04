@@ -10,9 +10,14 @@ const DAILY_DIR = path.join(__dirname, "..", "..", "..", "data", "daily");
 const RESEARCH_DIR = path.join(DAILY_DIR, "research");
 const INDEX_PATH = path.join(RESEARCH_DIR, "index.json");
 
+/** Sessions older than this (by `createdAt`) are removed on list and at startup. */
+export const RESEARCH_RETENTION_DAYS = 7;
+
 type ResearchIndex = {
   sessions: ResearchSession[];
 };
+
+let pruneLoggedThisProcess = false;
 
 function ensureResearchDir(): void {
   fs.mkdirSync(RESEARCH_DIR, { recursive: true });
@@ -120,7 +125,60 @@ function writeMarkdownAtomic(fileName: string, content: string): void {
   fs.renameSync(tmp, filePath);
 }
 
+function retentionCutoffMs(): number {
+  return Date.now() - RESEARCH_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+}
+
+/**
+ * Drop index entries and markdown files with `createdAt` before the retention window.
+ * Cutoff uses UTC milliseconds (ISO `createdAt` timestamps).
+ */
+export function pruneOldResearchSessions(options?: { log?: boolean }): number {
+  const cutoff = retentionCutoffMs();
+  const index = readIndex();
+  const keep: ResearchSession[] = [];
+  const remove: ResearchSession[] = [];
+
+  for (const session of index.sessions) {
+    const created = new Date(session.createdAt).getTime();
+    if (Number.isNaN(created) || created < cutoff) {
+      remove.push(session);
+    } else {
+      keep.push(session);
+    }
+  }
+
+  if (remove.length === 0) {
+    return 0;
+  }
+
+  for (const session of remove) {
+    const filePath = path.join(RESEARCH_DIR, session.fileName);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  }
+
+  saveIndex({ sessions: keep });
+
+  if (options?.log && !pruneLoggedThisProcess) {
+    console.log(
+      `[research] pruned ${remove.length} session(s) older than ${RESEARCH_RETENTION_DAYS} days (UTC cutoff)`,
+    );
+    pruneLoggedThisProcess = true;
+  }
+
+  return remove.length;
+}
+
+export function getResearchSessionById(id: string): ResearchSession | null {
+  pruneOldResearchSessions();
+  const index = readIndex();
+  return index.sessions.find((s) => s.id === id) ?? null;
+}
+
 export function listResearchSessions(): ResearchSession[] {
+  pruneOldResearchSessions();
   const index = readIndex();
   return [...index.sessions].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),

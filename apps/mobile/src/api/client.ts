@@ -1,4 +1,7 @@
 import type {
+  DailyTaskSchedule,
+  DailyTaskTopic,
+  DailyTasksPayload,
   DailyTodo,
   DailyTodosPayload,
   DashboardPayload,
@@ -102,6 +105,36 @@ export function createResearchSession(prompt: string): Promise<ResearchCreateRes
   return request("/api/daily/research", {
     method: "POST",
     body: JSON.stringify({ prompt }),
+  });
+}
+
+export function fetchDailyTasks(): Promise<DailyTasksPayload> {
+  return request("/api/daily/tasks");
+}
+
+export function tickDailyTasks(): Promise<DailyTasksPayload> {
+  return request("/api/daily/tasks/tick", { method: "POST" });
+}
+
+export function updateDailyTaskSchedule(
+  schedule: Partial<DailyTaskSchedule>,
+): Promise<{ schedule: DailyTaskSchedule }> {
+  return request("/api/daily/tasks/schedule", {
+    method: "PUT",
+    body: JSON.stringify(schedule),
+  });
+}
+
+export function createDailyTaskTopic(topic: string): Promise<DailyTaskTopic> {
+  return request("/api/daily/tasks/topics", {
+    method: "POST",
+    body: JSON.stringify({ topic }),
+  });
+}
+
+export function deleteDailyTaskTopic(id: string): Promise<{ ok: boolean }> {
+  return request(`/api/daily/tasks/topics/${encodeURIComponent(id)}`, {
+    method: "DELETE",
   });
 }
 

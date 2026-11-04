@@ -136,7 +136,46 @@ export type ResearchCreateResponse = ResearchSession;
 
 export type ClearLocalDataResponse = {
   ok: boolean;
-  cleared: ("todos" | "research")[];
+  cleared: ("todos" | "research" | "dailyTasks")[];
+};
+
+export type DailyTaskTopic = {
+  id: string;
+  topic: string;
+  createdAt: string;
+};
+
+export type DailyTaskSchedule = {
+  /** Local wall-clock time in 24h form, e.g. "08:30" */
+  runTimeLocal: string;
+  /** IANA timezone from the device, e.g. "America/Los_Angeles" */
+  timezone: string;
+};
+
+export type DailyTaskRunStatus = "pending" | "running" | "done" | "error";
+
+export type DailyTaskRun = {
+  id: string;
+  topicId: string;
+  topic: string;
+  /** Calendar date in the schedule timezone, YYYY-MM-DD */
+  localDate: string;
+  status: DailyTaskRunStatus;
+  researchSessionId?: string;
+  error?: string;
+  startedAt?: string;
+  completedAt?: string;
+};
+
+export type DailyTasksPayload = {
+  topics: DailyTaskTopic[];
+  schedule: DailyTaskSchedule;
+  todayRuns: DailyTaskRun[];
+  /** Present when status is done and session still exists */
+  results?: Record<
+    string,
+    Pick<ResearchSession, "summary" | "cards" | "prompt" | "createdAt">
+  >;
 };
 
 export type SettingsPublic = {
