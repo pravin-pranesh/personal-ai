@@ -9,11 +9,13 @@ import {
   TextInput,
   View,
 } from "react-native";
+import type { ResearchProvider } from "@personal-ai/shared";
 import {
   ApiRequestError,
   clearLocalDailyData,
   fetchSettings,
   testGeminiSettings,
+  testKimiSettings,
   updateSettings,
 } from "../../src/api/client";
 import { getApiBaseUrl } from "../../src/config/api";
@@ -22,7 +24,15 @@ import { PrimaryButton } from "../../src/components/ui/PrimaryButton";
 import { notifyDailyDataCleared } from "../../src/lib/dailyDataRefresh";
 import { colors, spacing, typography } from "../../src/theme";
 
-const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash";
+const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+const DEFAULT_KIMI_MODEL = "kimi-k3.1-pro";
+
+const RESEARCH_PROVIDER_OPTIONS: { id: ResearchProvider; label: string }[] = [
+  { id: "auto", label: "Auto" },
+  { id: "kimi", label: "Kimi" },
+  { id: "gemini", label: "Gemini" },
+  { id: "wikipedia", label: "Wikipedia" },
+];
 
 function formatApiError(err: unknown, fallback: string): string {
   if (err instanceof ApiRequestError) {
@@ -47,11 +57,29 @@ export default function SettingsScreen() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [geminiDevStub, setGeminiDevStub] = useState(false);
+  const [showOfflineDemo, setShowOfflineDemo] = useState(false);
+  const [kimiConfigured, setKimiConfigured] = useState(false);
+  const [kimiKeyPreview, setKimiKeyPreview] = useState<string | undefined>();
+  const [kimiModel, setKimiModel] = useState(DEFAULT_KIMI_MODEL);
+  const [kimiApiKeyDraft, setKimiApiKeyDraft] = useState("");
+  const [kimiTesting, setKimiTesting] = useState(false);
+  const [kimiSaving, setKimiSaving] = useState(false);
+  const [researchProvider, setResearchProvider] = useState<ResearchProvider>("auto");
+  const [providerSaving, setProviderSaving] = useState(false);
 
   const applySettings = useCallback((data: Awaited<ReturnType<typeof fetchSettings>>) => {
     setGeminiConfigured(data.geminiConfigured);
     setKeyPreview(data.geminiKeyPreview);
     setModel(data.geminiModel?.trim() || DEFAULT_GEMINI_MODEL);
+    setGeminiDevStub(data.geminiDevStub === true);
+    setKimiConfigured(data.kimiConfigured);
+    setKimiKeyPreview(data.kimiKeyPreview);
+    setKimiModel(data.kimiModel?.trim() || DEFAULT_KIMI_MODEL);
+    setResearchProvider(data.researchProvider ?? "auto");
+    if (data.geminiDevStub) {
+      setShowOfflineDemo(false);
+    }
   }, []);
 
   const loadSettings = useCallback(async () => {
@@ -103,17 +131,48 @@ export default function SettingsScreen() {
     if (testing || saving) return;
     setTesting(true);
     setSettingsError(null);
+    setShowOfflineDemo(false);
     try {
-      await testGeminiSettings();
+      const result = await testGeminiSettings();
       const data = await fetchSettings();
       applySettings(data);
-      Alert.alert("Connected", "Gemini responded successfully using the key on this server.");
+      if (result.mode === "stub") {
+        Alert.alert(
+          "Demo mode",
+          "Offline demo is active — research uses sample cards. Add an AI Studio key for live Gemini.",
+        );
+      } else {
+        Alert.alert("Connected", "Gemini responded successfully using the key on this server.");
+      }
     } catch (err) {
       const message = formatApiError(err, "Could not reach Gemini with the saved key.");
       setSettingsError(message);
+      setShowOfflineDemo(true);
       Alert.alert("Test failed", message);
     } finally {
       setTesting(false);
+    }
+  };
+
+  const onEnableOfflineDemo = async () => {
+    if (saving || testing) return;
+    setSaving(true);
+    setSettingsError(null);
+    try {
+      await updateSettings({ geminiDevStub: true });
+      const data = await fetchSettings();
+      applySettings(data);
+      setShowOfflineDemo(false);
+      Alert.alert(
+        "Demo mode enabled",
+        "Research will use sample cards until you add a working AI Studio key.",
+      );
+    } catch (err) {
+      const message = formatApiError(err, "Could not enable demo mode on the server.");
+      setSettingsError(message);
+      Alert.alert("Could not enable demo mode", message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -191,12 +250,21 @@ export default function SettingsScreen() {
               <Text
                 style={[
                   styles.statusBadge,
-                  geminiConfigured ? styles.statusConnected : styles.statusOff,
+                  geminiDevStub
+                    ? styles.statusDemo
+                    : geminiConfigured
+                      ? styles.statusConnected
+                      : styles.statusOff,
                 ]}
               >
-                {geminiConfigured ? "Connected" : "Not connected"}
+                {geminiDevStub ? "Demo mode" : geminiConfigured ? "Key saved" : "Not connected"}
               </Text>
             </View>
+            {geminiDevStub ? (
+              <Text style={typography.caption}>
+                Offline demo — research uses sample cards. Add AI Studio key for live Gemini.
+              </Text>
+            ) : null}
             {settingsError ? (
               <Text style={styles.errorText}>{settingsError}</Text>
             ) : null}
@@ -207,12 +275,22 @@ export default function SettingsScreen() {
               <Text style={styles.saveHint}>Tap Save to connect this key to the server.</Text>
             ) : null}
             <Text style={typography.caption}>
-              Paste an API key from Google AI Studio. Keys stay on your server ({getApiBaseUrl()})
-              — never in the mobile bundle.
+              Paste an API key from Google AI Studio (AIza… or AQ.…). Keys stay on your server (
+              {getApiBaseUrl()}) — never in the mobile bundle.
+            </Text>
+            <Text style={typography.caption}>
+              Research sources: without a key (or in demo mode), briefings use **Wikipedia** when
+              possible; with a key, **Gemini** generates web-style summaries and falls back to
+              Wikipedia if the call fails.
+            </Text>
+            <Text style={typography.caption}>
+              If Test connection fails, create a new Gemini API key in AI Studio (Get API key →
+              Gemini API). Revoked or non-API credentials are rejected — the server sends the key as
+              x-goog-api-key, not OAuth Bearer.
             </Text>
             <TextInput
               style={styles.input}
-              placeholder="AIza… (Google AI Studio API key)"
+              placeholder="AIza… or AQ.… (Google AI Studio)"
               placeholderTextColor={colors.textSecondary}
               value={apiKeyDraft}
               onChangeText={setApiKeyDraft}
@@ -259,6 +337,14 @@ export default function SettingsScreen() {
                 </Pressable>
               ) : null}
             </View>
+            {showOfflineDemo && !geminiDevStub ? (
+              <PrimaryButton
+                label={saving ? "…" : "Use offline demo mode"}
+                onPress={() => void onEnableOfflineDemo()}
+                disabled={saving || testing}
+                variant="secondary"
+              />
+            ) : null}
           </>
         )}
       </Card>
@@ -318,6 +404,10 @@ const styles = StyleSheet.create({
   statusOff: {
     color: colors.textSecondary,
     backgroundColor: colors.border,
+  },
+  statusDemo: {
+    color: colors.text,
+    backgroundColor: `${colors.textSecondary}33`,
   },
   fieldLabel: { ...typography.caption, fontWeight: "600" },
   input: {

@@ -5,6 +5,8 @@ import type {
   ClearLocalDataResponse,
   ResearchCreateResponse,
   ResearchListPayload,
+  GeminiTestResponse,
+  KimiTestResponse,
   SettingsPublic,
   SettingsUpdateBody,
 } from "@personal-ai/shared";
@@ -98,10 +100,17 @@ export function fetchResearchSessions(): Promise<ResearchListPayload> {
   return request("/api/daily/research");
 }
 
-export function createResearchSession(prompt: string): Promise<ResearchCreateResponse> {
+export function fetchResearchSession(id: string): Promise<ResearchCreateResponse> {
+  return request(`/api/daily/research/${encodeURIComponent(id)}`);
+}
+
+export function createResearchSession(
+  prompt: string,
+  threadId?: string,
+): Promise<ResearchCreateResponse> {
   return request("/api/daily/research", {
     method: "POST",
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify({ prompt, threadId }),
   });
 }
 
@@ -120,6 +129,10 @@ export function updateSettings(body: SettingsUpdateBody): Promise<SettingsPublic
   });
 }
 
-export function testGeminiSettings(): Promise<{ ok: boolean; error?: string }> {
+export function testGeminiSettings(): Promise<GeminiTestResponse> {
   return request("/api/settings/test-gemini");
+}
+
+export function testKimiSettings(): Promise<KimiTestResponse> {
+  return request("/api/settings/test-kimi");
 }

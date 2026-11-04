@@ -1,6 +1,8 @@
 import { readSettings } from "./settingsStore.js";
 
-const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash";
+import { normalizeGeminiApiKey, readEnvGeminiKey } from "./geminiApiKey.js";
+
+const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
 
 export type GeminiConfig = {
   apiKey: string;
@@ -8,7 +10,7 @@ export type GeminiConfig = {
 };
 
 export function getGeminiConfig(): GeminiConfig | null {
-  const envKey = process.env.GEMINI_API_KEY?.trim();
+  const envKey = readEnvGeminiKey();
   if (envKey) {
     const settings = readSettings();
     return {
@@ -21,7 +23,9 @@ export function getGeminiConfig(): GeminiConfig | null {
   }
 
   const settings = readSettings();
-  const fileKey = settings.geminiApiKey?.trim();
+  const fileKey = settings.geminiApiKey
+    ? normalizeGeminiApiKey(settings.geminiApiKey)
+    : undefined;
   if (!fileKey) {
     return null;
   }

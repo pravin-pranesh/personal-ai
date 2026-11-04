@@ -6,8 +6,24 @@ Mobile-first **daily assistant** — todos, research chat, and a talking home ma
 
 - **Home** — welcome dashboard with a talking animated assistant (Lottie body + heuristic lip-sync mouth shapes; **web** uses the Web Speech API, native uses `expo-speech` — syllable/word timing, not phoneme-perfect), shortcuts to Today and Research, and recent research previews
 - **Today** tab — daily todos stored in `server/data/daily/todos.json` via `GET/POST/PATCH/DELETE /api/daily/todos`
-- **Research** tab — Grok-style chat: type any topic, get a summary plus headline cards; sessions saved as markdown under `server/data/daily/research/` with `index.json` via `GET/POST /api/daily/research` (Gemini when a key is configured; otherwise sample cards until RSS in MA-6)
-- **Settings** — save a **Gemini API key** on the server (`PUT /api/settings`, stored in gitignored `server/data/settings.json`) or set `GEMINI_API_KEY` in the server environment; Research uses Gemini when configured, otherwise sample cards. **Delete local data** — `POST /api/daily/reset` clears daily todos and research files only (SQLite task catalog on the server is unchanged)
+- **Research** tab — Grok-style chat with **New chat** and **History**: type any topic, get a bullet briefing plus headline cards; threads saved under `server/data/daily/research/` (`index.json` + per-session `{id}.json` and markdown). APIs: `GET/POST /api/daily/research`, `GET /api/daily/research/:id` for replay.
+- **Research information sources** (server-side):
+  - **Kimi (Moonshot)** — with a valid key and demo stub off: OpenAI-compatible chat completions at `api.moonshot.ai` via `kimiResearch.ts` (shows **Kimi** chip). In **Auto** mode, Kimi is tried before Gemini when both keys are set.
+  - **Wikipedia** — when no AI key, demo/offline stub, or AI fails: English Wikipedia REST summary + search (see `server/src/services/wikipediaResearch.ts`). The mobile UI shows a **Wikipedia** chip on the briefing.
+  - **Gemini (Google AI Studio)** — with a valid key and demo stub off: grounded, web-style JSON briefing via `geminiResearch.ts` (shows **Gemini** chip). On failure, falls back to Wikipedia then sample **Demo** cards.
+  - **Demo / stub** — sample headline cards when Wikipedia has no match (`sourcesUsed` includes **Demo**).
+- **Settings** — save **Gemini** and/or **Kimi** API keys on the server (`PUT /api/settings`, stored in gitignored `server/data/settings.json`) or set environment variables on the API process:
+  - Gemini: `GEMINI_API_KEY` or `GOOGLE_API_KEY`
+  - Kimi: `MOONSHOT_API_KEY` or `KIMI_API_KEY`
+  - Optional `researchProvider`: `auto` (default), `kimi`, `gemini`, or `wikipedia`
+  - Research **Auto** order: Kimi → Gemini → Wikipedia → demo. **Delete local data** — `POST /api/daily/reset` clears daily todos and research files only (SQLite task catalog on the server is unchanged)
+
+### Kimi API key (Moonshot)
+
+1. Sign in at [platform.kimi.ai](https://platform.kimi.ai).
+2. Open **Console → API Keys** and create a key (pay-as-you-go billing; flagship models such as `kimi-k3.1-pro` require a minimum top-up, typically about **$1 USD** — not free unlimited).
+3. In the app **Settings → Kimi (Moonshot)**, paste the key and tap **Save**, then **Test connection** (`GET /api/settings/test-kimi`).
+4. Or set `MOONSHOT_API_KEY` / `KIMI_API_KEY` in the server environment before starting `npm run server`.
 
 ### Legacy server APIs
 
@@ -47,7 +63,7 @@ npm run mobile:web
 
 Open the **Today** tab to add, complete, and delete todos. Data persists in `server/data/daily/todos.json` on the machine running the API.
 
-Open the **Research** tab, ask about any news topic, and confirm assistant bubbles plus cards appear; on the laptop, check `server/data/daily/research/*.md` and `index.json` after each prompt.
+Open the **Research** tab, ask about any news topic (e.g. “lion”), and confirm source chips (**Wikipedia** in demo/no-key mode), assistant bubbles, and cards. Tap **History** to reopen a saved thread; **New chat** clears the composer. On the laptop, check `server/data/daily/research/index.json`, `{session-id}.json`, and `*.md` after each prompt.
 
 For phone testing on LAN, use `LOCAL-RUN.ps1`.
 

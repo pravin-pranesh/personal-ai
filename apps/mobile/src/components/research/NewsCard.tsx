@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import type { ResearchNewsCard } from "@personal-ai/shared";
 import { colors, spacing, typography } from "../../theme";
 
@@ -24,8 +24,17 @@ function formatWhen(iso?: string): string | null {
 export function NewsCard({ card }: Props) {
   const when = formatWhen(card.publishedAt);
 
+  const openUrl = () => {
+    if (card.url) {
+      void Linking.openURL(card.url);
+    }
+  };
+
   return (
-    <Pressable style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
+    <Pressable
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      onPress={card.url ? openUrl : undefined}
+    >
       <Text style={styles.title} numberOfLines={3}>
         {card.title}
       </Text>

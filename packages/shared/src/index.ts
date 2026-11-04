@@ -116,7 +116,23 @@ export type ResearchNewsCard = {
   snippet: string;
   source: string;
   publishedAt?: string;
+  url?: string;
 };
+
+export type ResearchSource = "wikipedia" | "gemini" | "kimi" | "stub";
+
+export type ResearchProvider = "auto" | "kimi" | "gemini" | "wikipedia";
+
+export type ResearchThreadMessage =
+  | { id: string; role: "user"; text: string; createdAt: string }
+  | {
+      id: string;
+      role: "assistant";
+      text: string;
+      createdAt: string;
+      cards: ResearchNewsCard[];
+      sourcesUsed: ResearchSource[];
+    };
 
 export type ResearchSession = {
   id: string;
@@ -124,12 +140,20 @@ export type ResearchSession = {
   slug: string;
   fileName: string;
   createdAt: string;
+  updatedAt: string;
   summary: string;
   cards: ResearchNewsCard[];
+  messages: ResearchThreadMessage[];
+  sourcesUsed?: ResearchSource[];
 };
 
+export type ResearchSessionSummary = Pick<
+  ResearchSession,
+  "id" | "prompt" | "createdAt" | "updatedAt"
+>;
+
 export type ResearchListPayload = {
-  sessions: ResearchSession[];
+  sessions: ResearchSessionSummary[];
 };
 
 export type ResearchCreateResponse = ResearchSession;
@@ -143,9 +167,29 @@ export type SettingsPublic = {
   geminiConfigured: boolean;
   geminiModel?: string;
   geminiKeyPreview?: string;
+  geminiDevStub?: boolean;
+  kimiConfigured: boolean;
+  kimiModel?: string;
+  kimiKeyPreview?: string;
+  researchProvider?: ResearchProvider;
 };
 
 export type SettingsUpdateBody = {
   geminiApiKey?: string;
   geminiModel?: string;
+  geminiDevStub?: boolean;
+  kimiApiKey?: string;
+  kimiModel?: string;
+  researchProvider?: ResearchProvider;
+};
+
+export type GeminiTestResponse = {
+  ok: boolean;
+  mode?: "live" | "stub";
+  error?: string;
+};
+
+export type KimiTestResponse = {
+  ok: boolean;
+  error?: string;
 };

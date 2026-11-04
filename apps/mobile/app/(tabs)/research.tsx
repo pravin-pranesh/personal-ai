@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,10 +12,23 @@ import {
   View,
   type ScrollViewInstance,
 } from "react-native";
-import type { ResearchSession } from "@personal-ai/shared";
-import { createResearchSession, fetchResearchSessions } from "../../src/api/client";
+import { useNavigation } from "expo-router";
+import type {
+  ResearchNewsCard,
+  ResearchSessionSummary,
+  ResearchSource,
+  ResearchThreadMessage,
+} from "@personal-ai/shared";
+import {
+  createResearchSession,
+  fetchResearchSession,
+  fetchResearchSessions,
+} from "../../src/api/client";
 import { AssistantOrbAvatar } from "../../src/components/research/AssistantOrbAvatar";
 import { NewsCard } from "../../src/components/research/NewsCard";
+import { ResearchBriefingText } from "../../src/components/research/ResearchBriefingText";
+import { ResearchHistorySheet } from "../../src/components/research/ResearchHistorySheet";
+import { ResearchSourceChips } from "../../src/components/research/ResearchSourceChips";
 import { ResearchTypingIndicator } from "../../src/components/research/ResearchTypingIndicator";
 import { subscribeDailyDataCleared } from "../../src/lib/dailyDataRefresh";
 import { OfflineBanner } from "../../src/components/ui/OfflineBanner";
@@ -27,59 +41,101 @@ type ThreadMessage =
       role: "assistant";
       text: string;
       createdAt: string;
-      cards: ResearchSession["cards"];
+      cards: ResearchNewsCard[];
+      sourcesUsed: ResearchSource[];
     };
 
-function sessionsToMessages(sessions: ResearchSession[]): ThreadMessage[] {
-  const chronological = [...sessions].sort(
-    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+function apiMessagesToThread(messages: ResearchThreadMessage[]): ThreadMessage[] {
+  return messages.map((m) =>
+    m.role === "user"
+      ? { id: m.id, role: "user", text: m.text, createdAt: m.createdAt }
+      : {
+          id: m.id,
+          role: "assistant",
+          text: m.text,
+          createdAt: m.createdAt,
+          cards: m.cards,
+          sourcesUsed: m.sourcesUsed ?? [],
+        },
   );
-  const messages: ThreadMessage[] = [];
-  for (const s of chronological) {
-    messages.push({
-      id: `${s.id}-user`,
-      role: "user",
-      text: s.prompt,
-      createdAt: s.createdAt,
-    });
-    messages.push({
-      id: `${s.id}-assistant`,
-      role: "assistant",
-      text: s.summary,
-      createdAt: s.createdAt,
-      cards: s.cards,
-    });
-  }
-  return messages;
 }
 
 export default function ResearchScreen() {
+  const navigation = useNavigation();
   const scrollRef = useRef<ScrollViewInstance>(null);
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [draft, setDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historySessions, setHistorySessions] = useState<ResearchSessionSummary[]>([]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const startNewChat = useCallback(() => {
+    setActiveThreadId(null);
+    setMessages([]);
+    setDraft("");
+    Keyboard.dismiss();
+  }, []);
+
+  const openHistory = useCallback(async () => {
+    setHistoryOpen(true);
+    setHistoryLoading(true);
     setError(false);
     try {
       const data = await fetchResearchSessions();
-      setMessages(sessionsToMessages(data.sessions));
+      setHistorySessions(data.sessions);
     } catch {
+      setHistorySessions([]);
       setError(true);
-      setMessages([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  const loadSession = useCallback(async (id: string) => {
+    setHistoryOpen(false);
+    setLoading(true);
+    setError(false);
+    try {
+      const session = await fetchResearchSession(id);
+      setActiveThreadId(session.id);
+      setMessages(apiMessagesToThread(session.messages));
+    } catch {
+      Alert.alert("Could not load session", "Check that the server is running and try again.");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <View style={styles.headerActions}>
+          <Pressable
+            onPress={() => startNewChat()}
+            style={({ pressed }) => [styles.headerBtn, pressed && styles.headerBtnPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="New chat"
+          >
+            <Text style={styles.headerBtnText}>New chat</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => void openHistory()}
+            style={({ pressed }) => [styles.headerBtn, pressed && styles.headerBtnPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Research history"
+          >
+            <Text style={styles.headerBtnText}>History</Text>
+          </Pressable>
+        </View>
+      ),
+    });
+  }, [navigation, openHistory, startNewChat]);
 
-  useEffect(() => subscribeDailyDataCleared(() => void load()), [load]);
+  useEffect(() => subscribeDailyDataCleared(() => startNewChat()), [startNewChat]);
 
   useEffect(() => {
     if (!loading) {
@@ -102,26 +158,9 @@ export default function ResearchScreen() {
     setSubmitting(true);
 
     try {
-      const session = await createResearchSession(prompt);
-      setMessages((prev) => {
-        const withoutPending = prev.filter((m) => m.id !== pendingUser.id);
-        return [
-          ...withoutPending,
-          {
-            id: `${session.id}-user`,
-            role: "user",
-            text: session.prompt,
-            createdAt: session.createdAt,
-          },
-          {
-            id: `${session.id}-assistant`,
-            role: "assistant",
-            text: session.summary,
-            createdAt: session.createdAt,
-            cards: session.cards,
-          },
-        ];
-      });
+      const session = await createResearchSession(prompt, activeThreadId ?? undefined);
+      setActiveThreadId(session.id);
+      setMessages(apiMessagesToThread(session.messages));
     } catch {
       setMessages((prev) => prev.filter((m) => m.id !== pendingUser.id));
       setDraft(prompt);
@@ -165,8 +204,9 @@ export default function ResearchScreen() {
               <AssistantOrbAvatar size={56} />
               <Text style={styles.emptyTitle}>Ask about any topic</Text>
               <Text style={styles.emptyHint}>
-                Type a question or news angle below. I&apos;ll reply with a short summary and
-                headline cards (sample sources until RSS is wired).
+                Type a question or news angle below. I&apos;ll reply with a bullet-point briefing
+                (key facts, what to watch, context) plus optional headline cards. Use History to
+                reopen past threads.
               </Text>
             </View>
           ) : (
@@ -182,7 +222,8 @@ export default function ResearchScreen() {
                   <AssistantOrbAvatar size={28} />
                   <View style={styles.assistantCol}>
                     <View style={styles.assistantBubble}>
-                      <Text style={styles.assistantText}>{msg.text}</Text>
+                      <ResearchBriefingText text={msg.text} />
+                      <ResearchSourceChips sources={msg.sourcesUsed} />
                     </View>
                     <View style={styles.cardStack}>
                       {msg.cards.map((card, i) => (
@@ -225,12 +266,38 @@ export default function ResearchScreen() {
           </View>
         </View>
       </View>
+
+      <ResearchHistorySheet
+        visible={historyOpen}
+        loading={historyLoading}
+        sessions={historySessions}
+        onClose={() => setHistoryOpen(false)}
+        onSelect={(id) => void loadSession(id)}
+      />
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.background },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginRight: spacing.xs,
+  },
+  headerBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: spacing.xs,
+  },
+  headerBtnPressed: {
+    opacity: 0.7,
+  },
+  headerBtnText: {
+    color: colors.primary,
+    fontWeight: "700",
+    fontSize: 15,
+  },
   bannerWrap: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
   thread: { flex: 1 },
   threadContent: {
@@ -294,11 +361,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
-  },
-  assistantText: {
-    ...typography.body,
-    color: colors.text,
-    lineHeight: 22,
   },
   cardStack: {
     gap: spacing.sm,

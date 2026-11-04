@@ -1,21 +1,25 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getGeminiConfig } from "./geminiConfig.js";
+import { formatGeminiError, geminiComplete } from "./geminiClient.js";
+import { isGeminiDevStubEnabled } from "./settingsStore.js";
 
-export async function testGeminiConnection(): Promise<{ ok: true } | { ok: false; error: string }> {
+export type GeminiTestResult =
+  | { ok: true; mode: "live" | "stub" }
+  | { ok: false; error: string };
+
+export async function testGeminiConnection(): Promise<GeminiTestResult> {
+  if (isGeminiDevStubEnabled()) {
+    return { ok: true, mode: "stub" };
+  }
+
   const config = getGeminiConfig();
   if (!config) {
     return { ok: false, error: "No Gemini API key saved on this server." };
   }
 
   try {
-    const genAI = new GoogleGenerativeAI(config.apiKey);
-    const model = genAI.getGenerativeModel({ model: config.model });
-    await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: "Reply with exactly: ok" }] }],
-    });
-    return { ok: true };
+    await geminiComplete(config, "Reply with exactly: ok");
+    return { ok: true, mode: "live" };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Gemini request failed";
-    return { ok: false, error: message };
+    return { ok: false, error: formatGeminiError(err) };
   }
 }
